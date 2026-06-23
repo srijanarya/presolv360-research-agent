@@ -27,6 +27,32 @@ class Source(BaseModel):
     error: str | None = None
 
 
+class SourceDoc(BaseModel):
+    """Fetch-stage output: a `Source` plus the extracted body text.
+
+    Internal to the pipeline; `text` is dropped when projected to the public
+    `Source` in the final brief.
+    """
+
+    id: str
+    url: str
+    status: FetchStatus = "ok"
+    text: str = ""
+    title: str = ""
+    fetch_method: str | None = None
+    error: str | None = None
+
+    def to_source(self) -> "Source":
+        return Source(
+            id=self.id,
+            url=self.url,
+            title=self.title,
+            status=self.status,
+            fetch_method=self.fetch_method,
+            error=self.error,
+        )
+
+
 class ClaimMember(BaseModel):
     source_id: str
     stance: Stance
