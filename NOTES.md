@@ -31,14 +31,14 @@ Claude Max subscription via `claude-agent-sdk` with **no API key**.
   gets a status, is excluded from extraction but still shown, and the run completes on whatever
   succeeded. Bad model JSON → one re-ask, then drop that source. The run never crashes.
 
-## Scope decision — I deliberately went beyond the suggested ~2h
+## Scope — one tested core, everything else is a thin view
 
-This is a **considered choice, not a misread of scope.** The analyst deliverable (CLI →
-`brief.{json,md,html}`) is complete and tested on its own. On top of the *same one JSON contract* I
-added a FastAPI + SSE backend and a React SPA that renders the Claim Graph with live per-stage
-progress — because "the kind of thing an analyst would open and use" is more convincing as a real
-product, and it shows the AI-native build workflow end to end. Nothing is half-done: every layer is
-a thin projection of the tested core, so if you only run the CLI you still get the full result.
+The analyst deliverable (CLI → `brief.{json,md,html}`) is complete and tested on its own. On top of
+the *same one JSON contract* sit a FastAPI + SSE backend and a React SPA that render the Claim Graph
+with live per-stage progress — because "the kind of thing an analyst would open and use" is more
+convincing as a real product, and it shows the AI-native build workflow end to end. Nothing is
+half-done: every layer is a thin projection of the tested core, so if you only run the CLI you still
+get the full result.
 
 ## Tradeoffs I made for time / reliability
 
