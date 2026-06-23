@@ -38,14 +38,18 @@ logger = logging.getLogger("research_agent.reason")
 def classify_cluster(members: list[ClaimMember]) -> Classification:
     """Label a cluster from its members' stances.
 
-    - **contested**: at least one source supports and at least one contradicts.
+    - **contested**: a genuine *cross-source* disagreement — at least one source
+      supports and a *different* source contradicts (≥2 distinct sources). One article
+      citing conflicting studies is intra-source nuance, not contested.
     - **consensus**: ≥2 *distinct* sources agree (dedupe by source).
     - **outlier**: a single source's position.
     """
-    stances = {m.stance for m in members}
-    if "supports" in stances and "contradicts" in stances:
+    supporters = {m.source_id for m in members if m.stance == "supports"}
+    contradictors = {m.source_id for m in members if m.stance == "contradicts"}
+    distinct = supporters | contradictors
+    if supporters and contradictors and len(distinct) >= 2:
         return "contested"
-    if len({m.source_id for m in members}) >= 2:
+    if len(distinct) >= 2:
         return "consensus"
     return "outlier"
 

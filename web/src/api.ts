@@ -29,22 +29,32 @@ export function streamRun(
   onEvent: (event: SSEEvent) => void,
 ): () => void {
   const es = new EventSource(`${BASE}/research/${runId}/stream`)
+  let stopped = false
+
+  const stop = () => {
+    stopped = true
+    es.close()
+  }
 
   es.onmessage = (msg) => {
+    if (stopped) return
     try {
-      const parsed = JSON.parse(msg.data) as SSEEvent
-      onEvent(parsed)
+      onEvent(JSON.parse(msg.data) as SSEEvent)
     } catch {
       // ignore malformed frames
     }
   }
 
   es.onerror = () => {
+    // The server closes the connection after the terminal event; the caller calls
+    // stop() on done/error (setting `stopped`), so reaching here while not stopped
+    // means a genuine unexpected drop — surface it once, then stop.
+    if (stopped) return
     onEvent({ type: 'error', error: 'Stream connection lost.' })
-    es.close()
+    stop()
   }
 
-  return () => es.close()
+  return stop
 }
 
 // ── View endpoints ────────────────────────────────────────────────────────────

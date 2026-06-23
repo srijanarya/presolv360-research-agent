@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import type { Brief, PipelineStage, SourceStatus, SSEEvent } from './types'
 import { postResearch, streamRun } from './api'
 import InputForm from './components/InputForm'
@@ -29,9 +29,14 @@ export default function App() {
   const [runState, setRunState] = useState<RunState | null>(null)
   const [brief, setBrief] = useState<Brief | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const stopRef = useRef<(() => void) | null>(null)
+
+  // Close any open SSE stream when the app unmounts (no dangling EventSource).
+  useEffect(() => () => stopRef.current?.(), [])
 
   const handleSubmit = useCallback(
     async (topic: string, urls: string[], adversarial: boolean) => {
+      stopRef.current?.() // stop any prior run's stream before starting a new one
       setAppState('running')
       setErrorMsg(null)
       setBrief(null)
@@ -111,6 +116,7 @@ export default function App() {
             break
         }
       })
+      stopRef.current = stop
     },
     [],
   )

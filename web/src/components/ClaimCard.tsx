@@ -27,6 +27,7 @@ export default function ClaimCard({ cluster, sources }: Props) {
       {/* Header */}
       <button
         onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
         className="w-full text-left px-5 py-4 flex items-start gap-3 group"
       >
         <span

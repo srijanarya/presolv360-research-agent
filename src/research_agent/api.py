@@ -24,7 +24,6 @@ from research_agent.pipeline import run_pipeline
 from research_agent.synthesize import render_html, render_markdown
 
 _WEB_DIST = Path(__file__).resolve().parents[2] / "web" / "dist"
-_SENTINEL = object()
 
 
 class ResearchRequest(BaseModel):
@@ -71,52 +70,53 @@ def create_app(pipeline_fn=run_pipeline) -> FastAPI:
         runs[run_id] = RunState(run_id=run_id, topic=req.topic, urls=req.urls, adversarial=req.adversarial)
         return {"run_id": run_id}
 
+    def _ensure_driving(state: RunState) -> None:
+        """Start the pipeline exactly once per run.
+
+        The status check + set is synchronous (no await between), so concurrent
+        stream connections can't launch duplicate runs — the first flips `pending`
+        → `running` and drives; the rest just tail the shared `events` list.
+        """
+        if state.status != "pending":
+            return
+        state.status = "running"
+
+        async def on_event(event: dict) -> None:
+            if event.get("type") != "done":  # the API appends its own authoritative terminal
+                state.events.append(event)
+
+        async def drive() -> None:
+            try:
+                brief = await pipeline_fn(
+                    state.topic, state.urls, on_event=on_event, adversarial=state.adversarial
+                )
+                state.brief, state.status = brief, "done"
+                state.events.append({"type": "done", "brief": brief.model_dump()})
+            except Exception as exc:  # noqa: BLE001 — surface failures as an SSE error event
+                state.status, state.error = "error", str(exc)
+                state.events.append({"type": "error", "error": str(exc)})
+
+        asyncio.create_task(drive())
+
     @app.get("/api/research/{run_id}/stream")
     async def stream(run_id: str) -> StreamingResponse:
         state = _get(run_id)
+        _ensure_driving(state)
 
         async def gen():
-            # Already finished → replay recorded events + terminal.
-            if state.status in ("done", "error"):
-                for event in state.events:
+            # Tail the shared events list (works for the driver and any later/extra connection).
+            idx = 0
+            while True:
+                if idx < len(state.events):
+                    event = state.events[idx]
+                    idx += 1
                     yield _sse(event)
-                yield _sse(
-                    {"type": "done", "brief": state.brief.model_dump()}
-                    if state.brief
-                    else {"type": "error", "error": state.error}
-                )
-                return
-
-            state.status = "running"
-            queue: asyncio.Queue = asyncio.Queue()
-
-            async def on_event(event: dict) -> None:
-                if event.get("type") == "done":
-                    return  # the API emits the authoritative terminal after the run returns
-                state.events.append(event)
-                await queue.put(event)
-
-            async def drive() -> None:
-                try:
-                    brief = await pipeline_fn(
-                        state.topic, state.urls, on_event=on_event, adversarial=state.adversarial
-                    )
-                    state.brief, state.status = brief, "done"
-                    await queue.put({"type": "done", "brief": brief.model_dump()})
-                except Exception as exc:  # noqa: BLE001 — surface failures as an SSE error event
-                    state.status, state.error = "error", str(exc)
-                    await queue.put({"type": "error", "error": str(exc)})
-                await queue.put(_SENTINEL)
-
-            task = asyncio.create_task(drive())
-            try:
-                while True:
-                    event = await queue.get()
-                    if event is _SENTINEL:
-                        break
-                    yield _sse(event)
-            finally:
-                await task
+                    if event["type"] in ("done", "error"):
+                        return
+                elif state.status in ("done", "error"):
+                    return  # terminal already emitted
+                else:
+                    await asyncio.sleep(0.05)
 
         return StreamingResponse(gen(), media_type="text/event-stream")
 

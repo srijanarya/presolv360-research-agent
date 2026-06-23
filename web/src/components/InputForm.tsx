@@ -60,10 +60,11 @@ export default function InputForm({ onSubmit, disabled }: Props) {
 
       {/* Topic */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-muted uppercase tracking-wider">
+        <label htmlFor="topic" className="block text-sm font-medium text-muted uppercase tracking-wider">
           Topic
         </label>
         <input
+          id="topic"
           type="text"
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
@@ -89,6 +90,7 @@ export default function InputForm({ onSubmit, disabled }: Props) {
                 value={url}
                 onChange={(e) => setUrl(i, e.target.value)}
                 placeholder={`https://example.com/article-${i + 1}`}
+                aria-label={`Source URL ${i + 1}`}
                 disabled={disabled}
                 className="flex-1 bg-bg border border-line rounded-lg px-4 py-2.5 text-ink placeholder:text-muted focus:outline-none focus:border-outlier disabled:opacity-50 transition-colors"
               />

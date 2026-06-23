@@ -62,5 +62,9 @@ a thin projection of the tested core, so if you only run the CLI you still get t
   precedence; a Constitution-Bench ruling > a practitioner blog).
 - **Embedding-based claim dedup** for clustering at scale; **cache** fetched+extracted sources;
   stream extraction; a real per-account rate-limit queue instead of best-effort retry.
+- **Harden the API for non-local deployment**: auth, rate-limiting, and run eviction (it's an
+  in-memory localhost demo today), plus full SSRF protection — the fetch guard already blocks
+  non-http(s) schemes and private/loopback/link-local IPs, but production also needs DNS-resolution
+  checks and redirect re-validation.
 - **PDF / court-document ingestion** and a "is this authority still current / not overruled?"
   checker (the natural next step for the legal domain).

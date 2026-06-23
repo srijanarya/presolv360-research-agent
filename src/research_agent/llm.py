@@ -32,22 +32,28 @@ _JSON_REMINDER = "\n\nReturn ONLY the JSON value — no preamble, no explanation
 
 # Each model call spawns a `claude` CLI subprocess. Fanning out one per cluster
 # (adversarial pass) + one per source (extract) at once overwhelms the CLI and
-# returns spurious errors, so cap simultaneous in-flight calls. Lazily bound to the
-# running loop (complete() is only used in single-loop CLI/server runs).
+# returns spurious errors, so cap simultaneous in-flight calls.
 MAX_CONCURRENCY = 5
 # Nested `claude` subprocesses occasionally return a spurious error-result turn
 # under load; these are transient, so retry the raw call with backoff.
 SDK_RETRIES = 2
-_semaphore: asyncio.Semaphore | None = None
 
 logger = logging.getLogger("research_agent.llm")
 
+# One semaphore per event loop. asyncio.Semaphore binds to the loop on first
+# contention, so a single module-global would raise "bound to a different event
+# loop" if reused across loops (e.g. the CLI's asyncio.run vs the server's loop,
+# or per-test loops). Keying by the running loop avoids that.
+_semaphores: dict = {}
+
 
 def _get_semaphore() -> asyncio.Semaphore:
-    global _semaphore
-    if _semaphore is None:
-        _semaphore = asyncio.Semaphore(MAX_CONCURRENCY)
-    return _semaphore
+    loop = asyncio.get_running_loop()
+    sem = _semaphores.get(loop)
+    if sem is None:
+        sem = asyncio.Semaphore(MAX_CONCURRENCY)
+        _semaphores[loop] = sem
+    return sem
 
 
 class ModelJSONError(Exception):

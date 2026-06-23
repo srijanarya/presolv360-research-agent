@@ -43,6 +43,12 @@ def test_three_sources_one_dissent_is_contested():
     assert classify_cluster([_m("s1"), _m("s2"), _m("s3", "contradicts")]) == "contested"
 
 
+def test_single_source_self_contradiction_is_not_contested():
+    # One article citing two conflicting studies is intra-source nuance, NOT a cross-source
+    # disagreement — it must not be labelled contested (the headline feature's correctness).
+    assert classify_cluster([_m("s1", "supports"), _m("s1", "contradicts")]) == "outlier"
+
+
 # --- E4.S3 — gap derivation (pure) ---
 
 def test_single_source_subtopic_flagged_as_gap():

@@ -14,6 +14,7 @@ from research_agent.fetch import (
     classify_fetch,
     fetch_all,
     fetch_source,
+    is_safe_url,
 )
 
 ARTICLE_HTML = """<!doctype html><html><head><title>Enhance or Eliminate</title></head>
@@ -60,6 +61,46 @@ def test_status_error_maps_from_http_5xx():
 
 def test_status_paywalled_on_known_paywall_marker():
     assert classify_fetch("short preview", raw_html=PAYWALL_HTML) == "paywalled"
+
+
+# --- SSRF guard (is_safe_url) ---
+
+def test_blocks_non_http_scheme():
+    assert not is_safe_url("file:///etc/passwd")[0]
+
+
+def test_blocks_loopback_ip():
+    assert not is_safe_url("http://127.0.0.1/secret")[0]
+
+
+def test_blocks_localhost_hostname():
+    assert not is_safe_url("http://localhost:8000/x")[0]
+
+
+def test_blocks_link_local_metadata_endpoint():
+    assert not is_safe_url("http://169.254.169.254/latest/meta-data/")[0]
+
+
+def test_blocks_private_range():
+    assert not is_safe_url("http://10.0.0.5/internal")[0]
+
+
+def test_allows_normal_https():
+    assert is_safe_url("https://www.brookings.edu/articles/x")[0]
+
+
+async def test_fetch_source_blocks_unsafe_url_without_network():
+    called = {"hit": False}
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        called["hit"] = True
+        return httpx.Response(200, html=ARTICLE_HTML)
+
+    async with _client(handler) as client:
+        doc = await fetch_source("s1", "http://127.0.0.1/secret", client=client)
+
+    assert doc.status == "error"
+    assert not called["hit"]  # never touched the network
 
 
 # --- E2.S2 — happy-path extraction (boilerplate stripped) ---

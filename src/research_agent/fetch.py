@@ -11,8 +11,10 @@ renderer are dependency-injected so the ladder is tested with no network/browser
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import re
 from html import unescape
+from urllib.parse import urlparse
 
 import httpx
 import trafilatura
@@ -47,6 +49,30 @@ PAYWALL_MARKERS = (
 
 class PlaywrightUnavailable(RuntimeError):
     """Raised by the renderer when Playwright or its browser isn't installed."""
+
+
+def is_safe_url(url: str) -> tuple[bool, str]:
+    """Basic SSRF guard: only http(s), and reject loopback/private/reserved hosts.
+
+    ponytail: blocks scheme + IP-literal/localhost cases (incl. the cloud metadata
+    endpoint 169.254.169.254). Full hardening (resolve DNS + re-check on redirect)
+    is noted in NOTES as a production item.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return False, f"unsupported scheme {parsed.scheme!r}"
+    host = parsed.hostname
+    if not host:
+        return False, "missing host"
+    if host == "localhost" or host.endswith(".local"):
+        return False, "loopback host"
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return True, ""  # a hostname (not an IP literal) — allowed
+    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+        return False, f"private/reserved IP {host}"
+    return True, ""
 
 
 def _has_paywall_marker(html: str) -> bool:
@@ -131,6 +157,9 @@ async def fetch_source(
     render=_playwright_render,
 ) -> SourceDoc:
     """Fetch one URL through the ladder. Never raises — failures become a status."""
+    safe, reason = is_safe_url(url)
+    if not safe:
+        return SourceDoc(id=source_id, url=url, status="error", error=f"blocked: {reason}")
     try:
         resp = await client.get(
             url, headers=HEADERS, follow_redirects=True, timeout=REQUEST_TIMEOUT
