@@ -19,6 +19,7 @@ out/
 
 # Editor / harness local state
 .claude/
+**/CLAUDE.md
 
 # Frontend
 node_modules/
