@@ -1,0 +1,35 @@
+[project]
+name = "research-agent"
+version = "0.1.0"
+description = "Cross-source research agent — fetches sources, extracts claims, builds a consensus/contested/outlier Claim Graph with citations."
+readme = "README.md"
+authors = [
+    { name = "srijanarya", email = "74669415+srijanarya@users.noreply.github.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "claude-agent-sdk>=0.2.107",
+    "fastapi>=0.138.0",
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "playwright>=1.60.0",
+    "readability-lxml>=0.8.4.1",
+    "trafilatura>=2.1.0",
+]
+
+[project.scripts]
+research-agent = "research_agent:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
