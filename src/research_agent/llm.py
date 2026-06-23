@@ -8,7 +8,10 @@ which is the single most common real-world LLM failure mode.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
+import random
 from typing import Any, Awaitable, Callable
 
 from claude_agent_sdk import (
@@ -25,6 +28,25 @@ MODEL_EXTRACT = "claude-sonnet-4-6"  # fast, parallel per-source extraction
 CompleteFn = Callable[[str, str, str], Awaitable[str]]
 
 _JSON_REMINDER = "\n\nReturn ONLY the JSON value — no preamble, no explanation, no code fences."
+
+# Each model call spawns a `claude` CLI subprocess. Fanning out one per cluster
+# (adversarial pass) + one per source (extract) at once overwhelms the CLI and
+# returns spurious errors, so cap simultaneous in-flight calls. Lazily bound to the
+# running loop (complete() is only used in single-loop CLI/server runs).
+MAX_CONCURRENCY = 5
+# Nested `claude` subprocesses occasionally return a spurious error-result turn
+# under load; these are transient, so retry the raw call with backoff.
+SDK_RETRIES = 3
+_semaphore: asyncio.Semaphore | None = None
+
+logger = logging.getLogger("research_agent.llm")
+
+
+def _get_semaphore() -> asyncio.Semaphore:
+    global _semaphore
+    if _semaphore is None:
+        _semaphore = asyncio.Semaphore(MAX_CONCURRENCY)
+    return _semaphore
 
 
 class ModelJSONError(Exception):
@@ -74,13 +96,29 @@ async def complete(system: str, prompt: str, model: str) -> str:
         allowed_tools=[],
         setting_sources=[],
     )
-    chunks: list[str] = []
-    async for message in query(prompt=prompt, options=options):
-        if isinstance(message, AssistantMessage):
-            for block in message.content:
-                if isinstance(block, TextBlock):
-                    chunks.append(block.text)
-    return "".join(chunks)
+    last_error: Exception | None = None
+    for attempt in range(SDK_RETRIES):
+        try:
+            chunks: list[str] = []
+            async with _get_semaphore():
+                async for message in query(prompt=prompt, options=options):
+                    if isinstance(message, AssistantMessage):
+                        for block in message.content:
+                            if isinstance(block, TextBlock):
+                                chunks.append(block.text)
+            text = "".join(chunks)
+            if text.strip():
+                return text
+            # An empty turn usually means a silent error-result; treat as retryable.
+            last_error = RuntimeError("empty model response")
+        except Exception as exc:  # noqa: BLE001 — transient SDK/CLI errors are retryable
+            last_error = exc
+        if attempt < SDK_RETRIES - 1:
+            delay = 1.0 * (2**attempt) + random.uniform(0, 0.5)
+            logger.warning("model call failed (attempt %d/%d): %s; retrying in %.1fs",
+                           attempt + 1, SDK_RETRIES, last_error, delay)
+            await asyncio.sleep(delay)
+    raise last_error if last_error else RuntimeError("model call failed")
 
 
 async def call_model(

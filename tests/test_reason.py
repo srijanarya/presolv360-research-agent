@@ -150,3 +150,26 @@ async def test_adversarial_flag_off_falls_back_to_single_pass():
     clusters, _ = await build_claim_graph("t", _claim_sets(), call_model=fake, adversarial=False)
     assert counters["adv"] == 0
     assert clusters[0].classification == "consensus"  # naive pass: both support
+
+
+async def test_single_source_cluster_skips_adversarial():
+    # A 1-source cluster is always outlier regardless of stance → recheck is a no-op, skip it.
+    counter = {"adv": 0}
+
+    async def fake(system: str, prompt: str, model: str):
+        if "stress-test" in system:
+            counter["adv"] += 1
+            return {"members": []}
+        return {
+            "clusters": [
+                {
+                    "statement": "only s1 asserts this",
+                    "members": [{"source_id": "s1", "stance": "supports", "claim_text": "a", "supporting_quote": "qa", "confidence": "high"}],
+                }
+            ],
+            "gaps": [],
+        }
+
+    clusters, _ = await build_claim_graph("t", _claim_sets(), call_model=fake, adversarial=True)
+    assert counter["adv"] == 0
+    assert clusters[0].classification == "outlier"

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research Brief — {{ brief.topic }}</title>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #1a212b; --ink: #e6edf3; --muted: #8b97a7; --line: #2a3441;
+    --consensus: #3fb950; --contested: #f0883e; --outlier: #58a6ff; --chip: #21262d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+  .meta code { background: var(--chip); padding: 1px 6px; border-radius: 4px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+    margin: 36px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .count { color: var(--ink); background: var(--chip); border-radius: 10px; padding: 1px 8px; font-size: 12px; }
+  .cluster { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line);
+    border-radius: 10px; padding: 16px 18px; margin: 12px 0; }
+  .cluster.contested { border-left-color: var(--contested); }
+  .cluster.consensus { border-left-color: var(--consensus); }
+  .cluster.outlier   { border-left-color: var(--outlier); }
+  .statement { font-weight: 600; font-size: 16px; margin-bottom: 12px; }
+  .member { display: grid; grid-template-columns: 96px 1fr; gap: 12px; padding: 8px 0;
+    border-top: 1px dashed var(--line); }
+  .member:first-of-type { border-top: none; }
+  .srcchip { font-size: 12px; }
+  .srcchip a { color: var(--outlier); text-decoration: none; font-weight: 600; }
+  .stance { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 1px 6px;
+    border-radius: 4px; display: inline-block; margin-top: 4px; }
+  .stance.supports { background: rgba(63,185,80,0.15); color: var(--consensus); }
+  .stance.contradicts { background: rgba(240,136,62,0.15); color: var(--contested); }
+  .claim { font-size: 14px; }
+  .quote { color: var(--muted); font-size: 13px; border-left: 2px solid var(--line);
+    padding-left: 10px; margin-top: 5px; font-style: italic; }
+  .conf { font-size: 11px; color: var(--muted); }
+  .empty { color: var(--muted); font-style: italic; padding: 4px 0 8px; }
+  .gap { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 14px; margin: 8px 0; }
+  .gap b { color: var(--ink); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  td a { color: var(--outlier); text-decoration: none; }
+  .status { font-size: 11px; padding: 1px 7px; border-radius: 10px; background: var(--chip); }
+  .status.ok { color: var(--consensus); }
+  .status.error, .status.timeout, .status.empty, .status.paywalled, .status.js_required { color: var(--contested); }
+  footer { margin-top: 40px; color: var(--muted); font-size: 12px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>{{ brief.topic }}</h1>
+  <div class="meta">
+    Generated {{ brief.generated_at }} ·
+    {{ brief.meta.sources_ok }}/{{ brief.meta.sources_ok + brief.meta.sources_failed }} sources fetched ·
+    reasoning <code>{{ brief.meta.model_reason }}</code>, extraction <code>{{ brief.meta.model_extract }}</code>
+  </div>
+
+  {% for key in order %}
+  <h2>{{ titles[key] }} <span class="count">{{ groups[key]|length }}</span></h2>
+  {% if not groups[key] %}
+    <div class="empty">None.</div>
+  {% endif %}
+  {% for cluster in groups[key] %}
+    <div class="cluster {{ key }}">
+      <div class="statement">{{ cluster.statement }}</div>
+      {% for m in cluster.members %}
+      <div class="member">
+        <div class="srcchip">
+          {% set src = (brief.sources | selectattr('id', 'equalto', m.source_id) | list) %}
+          {% if src %}<a href="{{ src[0].url }}">[{{ m.source_id }}]</a>{% else %}[{{ m.source_id }}]{% endif %}
+          <div class="stance {{ m.stance }}">{{ m.stance }}</div>
+        </div>
+        <div>
+          <div class="claim">{{ m.claim_text }} <span class="conf">({{ m.confidence }})</span></div>
+          <div class="quote">"{{ m.supporting_quote }}"</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+  {% endfor %}
+
+  <h2>Gaps <span class="count">{{ brief.gaps|length }}</span></h2>
+  {% if not brief.gaps %}<div class="empty">None identified.</div>{% endif %}
+  {% for gap in brief.gaps %}
+    <div class="gap"><b>{{ gap.description }}</b> — {{ gap.rationale }}</div>
+  {% endfor %}
+
+  <h2>Sources</h2>
+  <table>
+    <thead><tr><th>id</th><th>status</th><th>method</th><th>title</th><th>url</th></tr></thead>
+    <tbody>
+    {% for s in brief.sources %}
+      <tr>
+        <td>{{ s.id }}</td>
+        <td><span class="status {{ s.status }}">{{ s.status }}</span></td>
+        <td>{{ s.fetch_method or '—' }}</td>
+        <td>{{ s.title or '—' }}</td>
+        <td><a href="{{ s.url }}">{{ s.url }}</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <footer>Cross-source research agent · Claim Graph (consensus / contested / outlier)</footer>
+</div>
+</body>
+</html>

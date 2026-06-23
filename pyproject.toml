@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.scripts]
-research-agent = "research_agent:main"
+research-agent = "research_agent.cli:main"
 
 [build-system]
 requires = ["hatchling"]

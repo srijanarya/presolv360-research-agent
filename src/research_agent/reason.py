@@ -198,7 +198,9 @@ async def build_claim_graph(
         if not members:
             return None
         statement = str(raw_cluster.get("statement", "")).strip() or "(unnamed cluster)"
-        if adversarial:
+        # A single-source cluster is always `outlier` regardless of stance, so the
+        # adversarial recheck is a provable no-op — skip it (saves a model call).
+        if adversarial and len({m.source_id for m in members}) >= 2:
             members = await _adversarial_recheck(topic, statement, members, call_model)
         return ClaimCluster(
             id=f"c{index + 1}",
