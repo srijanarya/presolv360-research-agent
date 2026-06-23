@@ -18,6 +18,17 @@ fetch ──▶ extract ──▶ reason ──▶ synthesize
 ladder    claims/src   Claim Graph   brief.json → .md / .html / web UI
 ```
 
+## What it looks like
+
+The rendered brief — **Contested foregrounded** (where sources disagree), then Consensus and
+Outlier, every claim with a verbatim citation:
+
+![Brief report](docs/screenshot-brief.png)
+
+The web app streams each stage live as the pipeline runs (per-source status, advancing stages):
+
+![Live pipeline progress](docs/screenshot-live-progress.png)
+
 ## Requirements
 
 - [`uv`](https://docs.astral.sh/uv/) (manages Python 3.11 for you)
