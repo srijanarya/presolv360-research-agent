@@ -31,7 +31,9 @@ atomic, checkable claims it makes about a given topic.
 
 A "claim" is a single checkable assertion about the topic — not a whole sentence, not a paragraph. \
 Decompose compound statements into separate atomic claims (split → select on-topic → disambiguate \
-pronouns/references → decompose). Extract only claims genuinely about the topic; ignore boilerplate.
+pronouns/references → decompose). Extract only claims genuinely about the topic; ignore boilerplate. \
+Focus on the most important, substantive claims (typically 8–15 per source) — prioritise significance \
+over exhaustiveness; do not pad with trivia.
 
 For each claim include a "supporting_quote" copied VERBATIM from the source text — word for word, \
 not paraphrased. A quote that is not present verbatim in the source will be discarded.

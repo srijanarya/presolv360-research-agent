@@ -22,8 +22,9 @@ from claude_agent_sdk import (
 )
 
 # Exact model ids confirmed against the running session (E1).
-MODEL_REASON = "claude-opus-4-8"     # cross-source judgment + synthesis (the hard part)
-MODEL_EXTRACT = "claude-sonnet-4-6"  # fast, parallel per-source extraction
+MODEL_REASON = "claude-opus-4-8"        # global cross-source clustering (the hard judgment)
+MODEL_EXTRACT = "claude-sonnet-4-6"     # fast, parallel per-source extraction
+MODEL_ADVERSARIAL = "claude-sonnet-4-6"  # narrow per-cluster for/against recheck (fast, parallel)
 
 CompleteFn = Callable[[str, str, str], Awaitable[str]]
 
@@ -36,7 +37,7 @@ _JSON_REMINDER = "\n\nReturn ONLY the JSON value — no preamble, no explanation
 MAX_CONCURRENCY = 5
 # Nested `claude` subprocesses occasionally return a spurious error-result turn
 # under load; these are transient, so retry the raw call with backoff.
-SDK_RETRIES = 3
+SDK_RETRIES = 2
 _semaphore: asyncio.Semaphore | None = None
 
 logger = logging.getLogger("research_agent.llm")

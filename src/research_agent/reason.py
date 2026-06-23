@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from research_agent.llm import MODEL_REASON, call_model as _real_call_model
+from research_agent.llm import MODEL_ADVERSARIAL, MODEL_REASON, call_model as _real_call_model
 from research_agent.models import (
     Claim,
     ClaimCluster,
@@ -165,7 +165,7 @@ async def _adversarial_recheck(
     recheck (keyed by source_id); quotes/claim_text are never touched.
     """
     try:
-        raw = await call_model(ADVERSARIAL_SYSTEM, _adversarial_prompt(topic, statement, members), MODEL_REASON)
+        raw = await call_model(ADVERSARIAL_SYSTEM, _adversarial_prompt(topic, statement, members), MODEL_ADVERSARIAL)
     except Exception as exc:  # noqa: BLE001 — resilience: keep the naive stances
         logger.warning("adversarial recheck failed for %r: %s", statement[:60], exc)
         return members
