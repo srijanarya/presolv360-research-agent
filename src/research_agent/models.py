@@ -53,6 +53,22 @@ class SourceDoc(BaseModel):
         )
 
 
+class Claim(BaseModel):
+    """An atomic, checkable assertion a single source makes about the topic."""
+
+    text: str
+    supporting_quote: str
+    confidence: Confidence = "medium"
+
+
+class SourceClaims(BaseModel):
+    """All claims extracted from one source (extraction-stage output)."""
+
+    source_id: str
+    url: str = ""
+    claims: list[Claim] = []
+
+
 class ClaimMember(BaseModel):
     source_id: str
     stance: Stance
