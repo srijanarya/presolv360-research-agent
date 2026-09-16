@@ -242,15 +242,29 @@ async def _adversarial_recheck(
         logger.warning("adversarial recheck failed for %r: %s", statement[:60], exc)
         return members
 
-    revised = raw.get("members", []) if isinstance(raw, dict) else []
+    ignored: Counter = Counter()
+    if not isinstance(raw, dict):
+        ignored["malformed_recheck_response"] += 1
+        revised = []
+    else:
+        revised = raw.get("members", [])
+        if not isinstance(revised, list):
+            ignored["malformed_revision_collection"] += 1
+            revised = []
     proposed: dict[str, set[str]] = {}
     for item in revised:
         if not isinstance(item, dict):
+            ignored["malformed_revision"] += 1
             continue
         source_id, stance = item.get("source_id"), item.get("stance")
         if not isinstance(source_id, str) or stance not in ("supports", "contradicts"):
+            ignored["malformed_revision"] += 1
             continue
         proposed.setdefault(source_id, set()).add(stance)
+    known = {m.source_id for m in members}
+    for source_id in proposed:
+        if source_id not in known:
+            ignored["unknown_source"] += 1
 
     # Revisions are keyed only by source id, so they are applied only when that
     # key identifies exactly one surviving member and the returned stances agree.
@@ -262,14 +276,17 @@ async def _adversarial_recheck(
             out.append(member)  # unknown or missing revision: keep the original
             continue
         if per_source[member.source_id] != 1:
-            logger.info("recheck revision ignored (ambiguous original) for source %s", member.source_id)
+            ignored["ambiguous_original"] += 1
             out.append(member)
             continue
         if len(stances) != 1:
-            logger.info("recheck revision ignored (conflicting revisions) for source %s", member.source_id)
+            ignored["conflicting_revisions"] += 1
             out.append(member)
             continue
         out.append(member.model_copy(update={"stance": next(iter(stances))}))
+    if ignored:
+        # Counts and reason codes only; never raw claim, quote or source text.
+        logger.info("recheck revisions ignored: %s", dict(sorted(ignored.items())))
     return out
 
 

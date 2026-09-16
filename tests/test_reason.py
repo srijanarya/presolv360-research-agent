@@ -457,3 +457,35 @@ async def test_unusable_adversarial_response_keeps_naive_stances():
         clusters, _ = await build_claim_graph("t", _grounded_sets(), call_model=fake, adversarial=True)
         assert all(m.stance == "supports" for m in clusters[0].members), adv_response
         assert clusters[0].classification == "consensus"
+
+
+async def test_every_ignored_revision_reason_is_logged(caplog):
+    """Criterion 9: unknown, malformed, ambiguous and conflicting revisions all log a reason.
+
+    Raised by the independent gpt-5.6-terra review of snapshot 3895ec58: only the
+    ambiguous and conflicting cases were logged.
+    """
+    import logging
+
+    cases = {
+        "unknown_source": {"members": [{"source_id": "s404", "stance": "contradicts"}]},
+        "malformed_revision": {"members": [None, {"source_id": 7, "stance": "supports"},
+                                           {"source_id": "s1", "stance": "maybe"}]},
+        "malformed_revision_collection": {"members": "not a list"},
+        "malformed_recheck_response": "not an object",
+    }
+    members = [_member(), _member(source_id="s2", claim_text="Hiring slowed", quote="hiring slowed in Q2")]
+    for reason, adv in cases.items():
+        async def fake(system: str, prompt: str, model: str, _a=adv):
+            if "stress-test" in system:
+                return _a
+            return {"clusters": [{"statement": "x", "members": members}], "gaps": []}
+
+        with caplog.at_level(logging.INFO, logger="research_agent.reason"):
+            caplog.clear()
+            clusters, _ = await build_claim_graph("t", _grounded_sets(), call_model=fake, adversarial=True)
+        logged = " ".join(r.getMessage() for r in caplog.records)
+        assert "recheck revisions ignored" in logged, reason
+        assert reason in logged, (reason, logged)
+        assert all(m.stance == "supports" for m in clusters[0].members)
+        assert "adoption rose sharply" not in logged  # no source text in logs
