@@ -96,7 +96,7 @@ Regenerate all of it with `uv sync --locked && make check`. The harness imports 
 
 | Item | Where |
 |---|---|
-| Runnable repository | branch `quest/p2-grounded-members`; the reviewed commit is the branch head, and the pull request records its SHA |
+| Runnable repository | Branch `quest/p2-grounded-members`; production code was reviewed through `9c2cc38`. Subsequent changes are documentation only. |
 | Focused diff | `git diff f58b327..HEAD -- src/` — one module, 171 added and 30 removed lines; production code last changed at `9c2cc38`, and later commits on the branch are documentation only |
 | Automated checks and their results | `make check`; `quest/measurements.json` holds the machine-readable run |
 | Decision record | `quest/adr-001-grounded-members.md` |
