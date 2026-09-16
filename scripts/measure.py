@@ -190,11 +190,11 @@ async def main() -> int:
     same_valid = (json.dumps(b["all_valid_adversarial"], sort_keys=True)
                   == json.dumps(c["all_valid_adversarial"], sort_keys=True))
     rows = [
-        ("invalid members retained (of 4, mixed fixture)", bm["invalid_retained"], cm.get("invalid_retained", 0), "measured"),
-        ("valid normalized member retained (of 1)", bm["valid_retained"], cm.get("valid_retained", 0), "measured"),
+        ("invalid associations retained (4 proposed across 2 clusters)", bm["invalid_retained"], cm.get("invalid_retained", 0), "measured"),
+        ("valid association retained (1 proposed, whitespace/case variant)", bm["valid_retained"], cm.get("valid_retained", 0), "measured"),
         ("mixed fixture classification", bm["classifications"][0], cm["classifications"][0], "measured"),
         ("mixed fixture model calls (adversarial)", b["mixed_adversarial"]["model_calls"], c["mixed_adversarial"]["model_calls"], "fixture-only cost proxy"),
-        ("all-valid full output, baseline vs current", "reference", "identical" if same_valid else "DIFFERS", "measured"),
+        ("all-valid full output, baseline recomputed vs current", "recomputed", "identical" if same_valid else "DIFFERS", "measured"),
         ("null clusters outcome", b["null_clusters"]["outcome"], c["null_clusters"]["outcome"], "measured"),
     ]
     width = max(len(r[0]) for r in rows)

@@ -47,3 +47,5 @@ Two further gaps are deliberate, and both were named by the independent review o
 - **Model-surfaced gaps are accepted as written.** Nothing verifies that a named sub-topic is genuinely unaddressed by every source. `derive_gaps`, the part that is computed from the graph rather than asserted by the model, is unaffected.
 
 Both are out of scope here and are recorded as the next things worth fixing, not as solved.
+
+One more consequence, raised by the DeepSeek review: because associations are **unioned** when an input source id repeats, two genuinely different documents that arrived under the same id would widen each other's accepted set. Criterion 1 mandates the union, and the pipeline assigns ids itself, so this is a design consequence rather than a defect, but it is the one place where "the association extraction produced" is weaker than it sounds.

@@ -330,11 +330,11 @@ async def test_malformed_member_collection_is_skipped_not_fatal():
 
 async def test_null_non_list_and_missing_clusters_raise_descriptive_value_error():
     import pytest
-    cases = {  # criterion 11: the message must say what was wrong, not just fail
-        '{"clusters": null}': ({"clusters": None}, "must be a list"),
-        '{"clusters": "nope"}': ({"clusters": "nope"}, "must be a list"),
-        "missing key": ({"gaps": []}, "missing the 'clusters' key"),
-        "not an object": (["not", "an", "object"], "not a JSON object"),
+    cases = {  # criterion 11: each shape names ITS OWN problem, including the type it got
+        '{"clusters": null}': ({"clusters": None}, r"'clusters' must be a list \(got NoneType\)"),
+        '{"clusters": "nope"}': ({"clusters": "nope"}, r"'clusters' must be a list \(got str\)"),
+        "missing key": ({"gaps": []}, r"missing the 'clusters' key"),
+        "not an object": (["not", "an", "object"], r"not a JSON object \(got list\)"),
     }
     for label, (response, expected) in cases.items():
         async def fake(system, prompt, model, _r=response):
@@ -345,7 +345,7 @@ async def test_null_non_list_and_missing_clusters_raise_descriptive_value_error(
 
 async def test_all_members_rejected_raises_value_error():
     import pytest
-    with pytest.raises(ValueError, match="no member was grounded"):
+    with pytest.raises(ValueError, match=r"proposed 1 cluster\(s\) but no member was grounded.*'ungrounded_pair': 1"):
         await _graph([{"statement": "x", "members": [_member(quote="invented")]}])
 
 
@@ -393,9 +393,11 @@ async def test_invalid_members_are_absent_from_recheck_prompts():
 async def test_multiplicity_counted_after_validation_skips_recheck():
     # Two proposed sources, but only s1 survives -> single-source cluster -> no recheck.
     counters = {"adv": 0, "cluster": 0}
-    await _graph([{"statement": "x", "members": [_member(), _member(source_id="s9")]}],
-                 adversarial=True, counters=counters)
+    clusters, _ = await _graph([{"statement": "x", "members": [_member(), _member(source_id="s9")]}],
+                               adversarial=True, counters=counters)
     assert counters["adv"] == 0
+    assert counters["cluster"] == 1, "the clustering call itself did run"
+    assert {m.source_id for m in clusters[0].members} == {"s1"}, "skipped because one source survived"
 
 
 async def test_revision_ignored_for_ambiguous_original(caplog):
@@ -429,6 +431,8 @@ async def test_recheck_exception_keeps_naive_stances():
 
     clusters, _ = await build_claim_graph("t", _grounded_sets(), call_model=fake, adversarial=True)
     assert clusters[0].classification == "consensus"
+    # The naive stances survive unchanged; a swallowed exception that flipped them would fail here.
+    assert [(m.source_id, m.stance) for m in clusters[0].members] == [("s1", "supports"), ("s2", "supports")]
 
 
 # --- gaps raised by an independent free-model review of the scenario list ------
@@ -534,11 +538,21 @@ async def test_no_claim_or_quote_text_reaches_any_log(caplog):
     with caplog.at_level(logging.INFO, logger="research_agent.reason"):
         await _graph([{"statement": "x", "members": members}], adversarial=True,
                      adv_members=[{"source_id": "s404", "stance": "supports"}])
+    import re
     logged = " ".join(r.getMessage() for r in caplog.records)
     assert "grounding rejected" in logged and "recheck revisions ignored" in logged
     for secret in secrets:
-        assert secret not in logged, secret
         assert secret.lower() not in logged.lower(), secret
+    # Stronger than a spot check: every line this stage logs must match one of these
+    # shapes, which admit only counts, reason codes and indices.
+    allowed = re.compile(
+        r"^(grounding rejected \d+ proposed member\(s\)/cluster\(s\): \{[a-z_': ,0-9]*\}"
+        r"|recheck revisions ignored: \{[a-z_': ,0-9]*\}"
+        r"|cluster \d+ dropped: no grounded members"
+        r"|adversarial recheck failed for a \d+-member cluster: .*)$"
+    )
+    for record in caplog.records:
+        assert allowed.match(record.getMessage()), record.getMessage()
 
 
 # --- the two golden fixtures, asserted in the test suite (not only the harness) -
@@ -580,9 +594,13 @@ async def test_golden_all_valid_fixture_matches_tracked_expected_output():
     assert got == _expected("all-valid")  # full output, against a file, not against another run
     assert [m.source_id for m in clusters[0].members] == ["s1", "s2"]
     assert clusters[0].classification == "consensus"
-    # Nothing time-varying is serialized by this stage, so the golden cannot drift.
-    import json
-    assert not any(key in json.dumps(got) for key in ("generated_at", "timestamp", "2026"))
+    # The stage serializes exactly these fields and nothing time-varying, so the
+    # tracked golden cannot drift between runs. Asserted on the field sets, not on
+    # substrings.
+    assert set(got["clusters"][0]) == {"id", "statement", "classification", "members"}
+    assert all(set(m) == {"source_id", "stance", "claim_text", "supporting_quote", "confidence"}
+               for m in got["clusters"][0]["members"])
+    assert all(set(g) == {"description", "rationale"} for g in got["gaps"])
 
 
 async def test_golden_mixed_fixture_matches_tracked_expected_output():
@@ -609,5 +627,25 @@ async def test_golden_mixed_fixture_drops_a_model_call_versus_the_baseline():
         return data["response"]
 
     sets = [SourceClaims.model_validate(s) for s in data["claim_sets"]]
-    await build_claim_graph(data["topic"], sets, call_model=counting, adversarial=True)
+    clusters, _ = await build_claim_graph(data["topic"], sets, call_model=counting, adversarial=True)
     assert calls["n"] == 1, "only the clustering call: the survivor is single-source, so no recheck"
+    assert len({m.source_id for c in clusters for m in c.members}) == 1, "the stated reason holds"
+
+
+async def test_cluster_without_members_key_is_counted_malformed(caplog):
+    """ds41 review D3: a missing `members` key was silently a no-op, under-reporting rejections."""
+    import logging
+    with caplog.at_level(logging.INFO, logger="research_agent.reason"):
+        clusters, _ = await _graph([{"statement": "keep", "members": [_member()]}, {"statement": "no members key"}])
+    assert [c.statement for c in clusters] == ["keep"]
+    assert "malformed_member_collection" in " ".join(r.getMessage() for r in caplog.records)
+
+
+async def test_unknown_source_revisions_are_counted_per_entry(caplog):
+    """ds41 review D1: two revisions for the same unknown id must count as two."""
+    import logging
+    members = [_member(), _member(source_id="s2", claim_text="Hiring slowed", quote="hiring slowed in Q2")]
+    with caplog.at_level(logging.INFO, logger="research_agent.reason"):
+        await _graph([{"statement": "x", "members": members}], adversarial=True,
+                     adv_members=[{"source_id": "s404", "stance": "supports"}, {"source_id": "s404", "stance": "contradicts"}])
+    assert "'unknown_source': 2" in " ".join(r.getMessage() for r in caplog.records)

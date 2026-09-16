@@ -15,7 +15,9 @@ Every proposed member is first checked against the claims extraction actually
 produced (`build_claim_catalogue` + `_validate_member`): the whole
 `(source_id, claim_text, supporting_quote)` association must match, so a model
 cannot attach a real quote to rewritten claim text or invent provenance.
-Validation runs BEFORE the adversarial pass, classification and gap derivation.
+Validation runs BEFORE the adversarial pass, classification and the *derived*
+gaps. Gaps the model surfaces itself are parsed as returned and are not grounded
+(ADR 001 records this as a known limitation).
 
 The label is a *pure function* of stances (testable, no LLM); the LLM only supplies
 stances + clustering. `call_model` is dependency-injected (tested with fakes).
@@ -239,7 +241,8 @@ async def _adversarial_recheck(
     try:
         raw = await call_model(ADVERSARIAL_SYSTEM, _adversarial_prompt(topic, statement, members), MODEL_ADVERSARIAL)
     except Exception as exc:  # noqa: BLE001 — resilience: keep the naive stances
-        logger.warning("adversarial recheck failed for %r: %s", statement[:60], exc)
+        # Members count + exception only: the statement is model text derived from sources.
+        logger.warning("adversarial recheck failed for a %d-member cluster: %s", len(members), exc)
         return members
 
     ignored: Counter = Counter()
@@ -251,6 +254,7 @@ async def _adversarial_recheck(
         if not isinstance(revised, list):
             ignored["malformed_revision_collection"] += 1
             revised = []
+    known = {m.source_id for m in members}
     proposed: dict[str, set[str]] = {}
     for item in revised:
         if not isinstance(item, dict):
@@ -260,11 +264,10 @@ async def _adversarial_recheck(
         if not isinstance(source_id, str) or stance not in ("supports", "contradicts"):
             ignored["malformed_revision"] += 1
             continue
-        proposed.setdefault(source_id, set()).add(stance)
-    known = {m.source_id for m in members}
-    for source_id in proposed:
         if source_id not in known:
-            ignored["unknown_source"] += 1
+            ignored["unknown_source"] += 1  # one per revision entry, not per distinct id
+            continue
+        proposed.setdefault(source_id, set()).add(stance)
 
     # Revisions are keyed only by source id, so they are applied only when that
     # key identifies exactly one surviving member and the returned stances agree.
@@ -300,9 +303,10 @@ async def build_claim_graph(
     """Cluster → ground members → (adversarial recheck) → classify.
 
     Raises ``ValueError`` on a response that cannot be trusted at all: not an
-    object, no usable ``clusters`` list, or proposed clusters of which nothing
-    survived grounding validation. An explicitly empty ``clusters`` list is a
-    legitimate no-claims result.
+    object, a missing or non-list ``clusters``, or proposed clusters of which
+    nothing survived grounding validation. An explicitly empty ``clusters`` list
+    is a legitimate no-claims result; a list with some malformed entries keeps
+    the usable ones.
     """
     raw = await call_model(CLUSTER_SYSTEM, _cluster_prompt(topic, claim_sets), MODEL_REASON)
     if not isinstance(raw, dict):
@@ -321,13 +325,14 @@ async def build_claim_graph(
         if not isinstance(raw_cluster, dict):
             rejections["malformed_cluster"] += 1
             return None
-        members = _parse_members(raw_cluster.get("members", []), catalogue, rejections)
+        members = _parse_members(raw_cluster.get("members"), catalogue, rejections)
         if not members:
             logger.info("cluster %d dropped: no grounded members", index)
             return None
         statement = str(raw_cluster.get("statement", "")).strip() or "(unnamed cluster)"
         # A single-source cluster is always `outlier` regardless of stance, so the
-        # adversarial recheck is a provable no-op — skip it (saves a model call).
+        # recheck cannot change its classification — skip it (saves a model call).
+        # The member keeps its naive stance; that is a deliberate choice, not a no-op.
         if adversarial and len({m.source_id for m in members}) >= 2:
             members = await _adversarial_recheck(topic, statement, members, call_model)
         return ClaimCluster(
