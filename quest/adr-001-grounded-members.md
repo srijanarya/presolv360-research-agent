@@ -35,7 +35,7 @@ Validate every proposed member against a catalogue of the associations extractio
 
 **Good.** The extraction guarantee now holds end to end. Labels and gaps derive from grounded members only. Malformed output stops the run instead of producing a confident brief. The change is one module, with a pure catalogue and pure validation that are cheap to unit test.
 
-**Costs, stated plainly.** Strict equality drops members a human might accept, for example a lightly reworded quote, so recall drops in exchange for trustworthiness. A run can now fail where it previously produced a brief, which is deliberate: an SSE `error` beats a plausible fabrication. The catalogue holds normalized copies of claims and quotes in memory for the duration of the stage, which is small next to the source text already held.
+**Costs, stated plainly.** Strict equality drops members a human might accept, for example a lightly reworded quote, so recall drops in exchange for trustworthiness. Two live runs after implementation measured that drop at 45% and 8% of proposed members on the same input, with every classified loss being a verbatim quote under claim text the clustering model had rewritten; see `quest/live-runs/README.md`. A run can now fail where it previously produced a brief, which is deliberate: an SSE `error` beats a plausible fabrication. The catalogue holds normalized copies of claims and quotes in memory for the duration of the stage, which is small next to the source text already held.
 
 **Reversibility.** The change is additive within one module and is reverted by dropping the filter call. The fixtures and measurements stay valid either way, so a revert can be evaluated against the same numbers.
 
