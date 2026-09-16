@@ -1,5 +1,12 @@
 # Cross-Source Research Agent — the Claim Graph
 
+> **Quest submission, September 2026.** This branch carries a trust fix to the reasoning
+> stage: cluster members are now validated against the claims extraction actually produced.
+> Start at [`quest/intent.md`](quest/intent.md), then the
+> [decision record](quest/adr-001-grounded-members.md) and the
+> [directive](quest/directive.md), which holds the results and the full index.
+> Verify with `make check`.
+
 Give it a **topic + 3–5 source URLs**. It fetches and parses the (messy, real-world) pages,
 extracts each source's atomic claims, **reasons across the sources**, and produces a structured
 brief that distinguishes:

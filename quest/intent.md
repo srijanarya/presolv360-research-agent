@@ -3,6 +3,14 @@
 **Quest:** make AI-assisted code easier to trust and change.
 **Repository:** this one, my own public solution to a June 2026 take-home. Baseline for this work: tag `quest-baseline` (`f58b327`), which is public `main` `476522b` plus pre-Accept housekeeping.
 
+## What this system does
+
+The agent takes a topic and three to five source URLs and produces a brief that separates
+consensus, contested and outlier claims, each backed by a verbatim quote. It runs in four
+stages: fetch, extract, reason, synthesize. Extraction, stage two, guarantees that every
+quote is a verbatim substring of its source. Reasoning, stage three, asks a model to cluster
+those claims across sources. This document is about stage three.
+
 ## The problem I chose
 
 **Stage 3 reasoning accepts ungrounded members.** `build_claim_graph` asks a model to cluster extracted claims across sources. `_parse_members` then accepts whatever the model returns: any `source_id` string, any `claim_text`, any `supporting_quote`. Nothing checks those against the claims that extraction actually produced.
