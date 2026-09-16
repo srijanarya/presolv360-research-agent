@@ -96,15 +96,17 @@ Regenerate all of it with `uv sync --locked && make check`. The harness imports 
 
 | Item | Where |
 |---|---|
-| Runnable repository | Branch `quest/p2-grounded-members`; production code was reviewed through `9c2cc38`. Subsequent changes are documentation only. |
-| Focused diff | `git diff f58b327..HEAD -- src/` — one module, 171 added and 30 removed lines; production code last changed at `9c2cc38`, and later commits on the branch are documentation only |
-| Automated checks and their results | `make check`; `quest/measurements.json` holds the machine-readable run |
-| Decision record | `quest/adr-001-grounded-members.md` |
-| Code-review example, with dispositions | `quest/review-log.md` |
-| Quality signals and handoff note | this appendix, plus `quest/handoff.md` |
-| P4 handoff evidence, scrubbed | `quest/p4-handoff/` holds the patch and its test output; the branch `quest/p4-api-url-validation` carries the same commit |
-| Problem selection and alternatives | `quest/intent.md` |
-| Agent rules that governed the work | `AGENTS.md` |
+| Pull request | opened against `main` from [`quest/p2-grounded-members`](https://github.com/srijanarya/presolv360-research-agent/tree/quest/p2-grounded-members); the PR link is on the submission form |
+| Reviewed production revision | [`9c2cc38`](https://github.com/srijanarya/presolv360-research-agent/commit/9c2cc38); every later commit on the branch is documentation only |
+| Focused diff | [`f58b327..quest/p2-grounded-members`](https://github.com/srijanarya/presolv360-research-agent/compare/f58b327...quest/p2-grounded-members), one module under `src/`, 171 added and 30 removed lines |
+| Automated checks and their results | `uv sync --locked && make check`, offline, no credentials; [`quest/measurements.json`](https://github.com/srijanarya/presolv360-research-agent/blob/quest/p2-grounded-members/quest/measurements.json) holds the machine-readable run |
+| Decision record | [`quest/adr-001-grounded-members.md`](https://github.com/srijanarya/presolv360-research-agent/blob/quest/p2-grounded-members/quest/adr-001-grounded-members.md) |
+| Code-review example, with dispositions | [`quest/review-log.md`](https://github.com/srijanarya/presolv360-research-agent/blob/quest/p2-grounded-members/quest/review-log.md) |
+| Quality signals and handoff note | this appendix, plus [`quest/handoff.md`](https://github.com/srijanarya/presolv360-research-agent/blob/quest/p2-grounded-members/quest/handoff.md) |
+| P4 handoff evidence, scrubbed | [`quest/p4-handoff/`](https://github.com/srijanarya/presolv360-research-agent/blob/quest/p2-grounded-members/quest/p4-handoff) holds the patch and its test output; branch [`quest/p4-api-url-validation`](https://github.com/srijanarya/presolv360-research-agent/tree/quest/p4-api-url-validation) carries the same commit |
+| Problem selection and alternatives | [`quest/intent.md`](https://github.com/srijanarya/presolv360-research-agent/blob/quest/p2-grounded-members/quest/intent.md) |
+| Agent rules that governed the work | [`AGENTS.md`](https://github.com/srijanarya/presolv360-research-agent/blob/quest/p2-grounded-members/AGENTS.md) |
+| Loom walkthrough | to be added once recorded |
 
 ## Quality signals, in the language this team uses
 
