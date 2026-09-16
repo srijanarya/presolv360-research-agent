@@ -5,7 +5,14 @@
 > Start at [`quest/intent.md`](quest/intent.md), then the
 > [decision record](quest/adr-001-grounded-members.md) and the
 > [directive](quest/directive.md), which holds the results and the full index.
-> Verify with `make check`.
+> Verify with:
+>
+> ```bash
+> uv sync --locked && make check
+> ```
+>
+> Verification runs offline with injected model responses; no model credentials are required.
+> The authentication section below applies only to running the agent live.
 
 Give it a **topic + 3–5 source URLs**. It fetches and parses the (messy, real-world) pages,
 extracts each source's atomic claims, **reasons across the sources**, and produces a structured
