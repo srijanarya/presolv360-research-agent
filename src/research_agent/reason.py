@@ -11,6 +11,12 @@ Pipeline within the stage:
   3. **Classify** (pure, deterministic): `classify_cluster` labels each cluster
      consensus / contested / outlier from its members' stances.
 
+Every proposed member is first checked against the claims extraction actually
+produced (`build_claim_catalogue` + `_validate_member`): the whole
+`(source_id, claim_text, supporting_quote)` association must match, so a model
+cannot attach a real quote to rewritten claim text or invent provenance.
+Validation runs BEFORE the adversarial pass, classification and gap derivation.
+
 The label is a *pure function* of stances (testable, no LLM); the LLM only supplies
 stances + clustering. `call_model` is dependency-injected (tested with fakes).
 """
@@ -19,7 +25,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import Counter
 
+# Imported, not reimplemented: grounding comparisons must not drift from the
+# normalization that produced the extracted claims (ADR 001).
+from research_agent.extract import _norm_ws
 from research_agent.llm import MODEL_ADVERSARIAL, MODEL_REASON, call_model as _real_call_model
 from research_agent.models import (
     Claim,
@@ -31,6 +41,66 @@ from research_agent.models import (
 )
 
 logger = logging.getLogger("research_agent.reason")
+
+
+# ----------------------------- grounding ------------------------------------ #
+
+def _norm(text: str) -> str:
+    """Main's whitespace normalization, then lowercase (ADR 001)."""
+    return _norm_ws(text).lower()
+
+
+def build_claim_catalogue(claim_sets: list[SourceClaims]) -> dict[str, set[tuple[str, str]]]:
+    """source_id -> the complete (claim_text, quote) associations extraction produced.
+
+    Associations are unioned when an input source id repeats: two entries for one
+    source are two legitimate claim sets, not a conflict.
+    """
+    catalogue: dict[str, set[tuple[str, str]]] = {}
+    for source_claims in claim_sets:
+        entries = catalogue.setdefault(str(source_claims.source_id), set())
+        for claim in source_claims.claims:
+            entries.add((_norm(claim.text), _norm(claim.supporting_quote)))
+    return catalogue
+
+
+def _validate_member(item, catalogue: dict[str, set[tuple[str, str]]]) -> tuple[ClaimMember | None, str]:
+    """Return (member, "") when grounded, else (None, reason_code).
+
+    An accepted member keeps the model's original formatting; only the comparison
+    is normalized.
+    """
+    if not isinstance(item, dict):
+        return None, "malformed_member"
+    source_id = item.get("source_id")
+    if not isinstance(source_id, str) or not source_id.strip():
+        return None, "missing_source_id"
+    claim_text = item.get("claim_text")
+    if not isinstance(claim_text, str) or not claim_text.strip():
+        return None, "missing_claim_text"
+    quote = item.get("supporting_quote")
+    if not isinstance(quote, str) or not quote.strip():
+        return None, "missing_quote"
+    if item.get("stance") not in ("supports", "contradicts"):
+        return None, "invalid_stance"
+    associations = catalogue.get(source_id)
+    if associations is None:
+        return None, "unknown_source"
+    if (_norm(claim_text), _norm(quote)) not in associations:
+        return None, "ungrounded_pair"
+    confidence = item.get("confidence", "medium")
+    if confidence not in ("high", "medium", "low"):
+        confidence = "medium"  # the one deliberate fallback (ADR 001)
+    return (
+        ClaimMember(
+            source_id=source_id,
+            stance=item["stance"],
+            claim_text=claim_text,
+            supporting_quote=quote,
+            confidence=confidence,
+        ),
+        "",
+    )
 
 
 # ----------------------------- pure logic ----------------------------------- #
@@ -123,28 +193,26 @@ def _adversarial_prompt(topic: str, statement: str, members: list[ClaimMember]) 
 
 # ----------------------------- parsing -------------------------------------- #
 
-def _parse_members(raw_members) -> list[ClaimMember]:
+def _parse_members(
+    raw_members, catalogue: dict[str, set[tuple[str, str]]], rejections: Counter | None = None
+) -> list[ClaimMember]:
+    """Keep only members grounded in `catalogue`; count why the rest were dropped.
+
+    Duplicate valid members are kept: `classify_cluster` dedupes by source, so a
+    duplicate cannot manufacture corroboration.
+    """
     members: list[ClaimMember] = []
     if not isinstance(raw_members, list):
+        if rejections is not None:
+            rejections["malformed_member_collection"] += 1
         return members
     for item in raw_members:
-        if not isinstance(item, dict) or not item.get("source_id"):
+        member, reason = _validate_member(item, catalogue)
+        if member is None:
+            if rejections is not None:
+                rejections[reason] += 1
             continue
-        stance = item.get("stance")
-        if stance not in ("supports", "contradicts"):
-            stance = "supports"
-        confidence = item.get("confidence", "medium")
-        if confidence not in ("high", "medium", "low"):
-            confidence = "medium"
-        members.append(
-            ClaimMember(
-                source_id=str(item["source_id"]),
-                stance=stance,
-                claim_text=str(item.get("claim_text", "")),
-                supporting_quote=str(item.get("supporting_quote", "")),
-                confidence=confidence,
-            )
-        )
+        members.append(member)
     return members
 
 
@@ -175,12 +243,34 @@ async def _adversarial_recheck(
         return members
 
     revised = raw.get("members", []) if isinstance(raw, dict) else []
-    new_stance = {
-        m["source_id"]: m["stance"]
-        for m in revised
-        if isinstance(m, dict) and m.get("source_id") and m.get("stance") in ("supports", "contradicts")
-    }
-    return [m.model_copy(update={"stance": new_stance.get(m.source_id, m.stance)}) for m in members]
+    proposed: dict[str, set[str]] = {}
+    for item in revised:
+        if not isinstance(item, dict):
+            continue
+        source_id, stance = item.get("source_id"), item.get("stance")
+        if not isinstance(source_id, str) or stance not in ("supports", "contradicts"):
+            continue
+        proposed.setdefault(source_id, set()).add(stance)
+
+    # Revisions are keyed only by source id, so they are applied only when that
+    # key identifies exactly one surviving member and the returned stances agree.
+    per_source = Counter(m.source_id for m in members)
+    out: list[ClaimMember] = []
+    for member in members:
+        stances = proposed.get(member.source_id)
+        if not stances:
+            out.append(member)  # unknown or missing revision: keep the original
+            continue
+        if per_source[member.source_id] != 1:
+            logger.info("recheck revision ignored (ambiguous original) for source %s", member.source_id)
+            out.append(member)
+            continue
+        if len(stances) != 1:
+            logger.info("recheck revision ignored (conflicting revisions) for source %s", member.source_id)
+            out.append(member)
+            continue
+        out.append(member.model_copy(update={"stance": next(iter(stances))}))
+    return out
 
 
 async def build_claim_graph(
@@ -190,16 +280,33 @@ async def build_claim_graph(
     call_model=_real_call_model,
     adversarial: bool = True,
 ) -> tuple[list[ClaimCluster], list[Gap]]:
-    """Cluster → (adversarial recheck) → classify. Returns (clusters, gaps)."""
+    """Cluster → ground members → (adversarial recheck) → classify.
+
+    Raises ``ValueError`` on a response that cannot be trusted at all: not an
+    object, no usable ``clusters`` list, or proposed clusters of which nothing
+    survived grounding validation. An explicitly empty ``clusters`` list is a
+    legitimate no-claims result.
+    """
     raw = await call_model(CLUSTER_SYSTEM, _cluster_prompt(topic, claim_sets), MODEL_REASON)
-    raw_clusters = raw.get("clusters", []) if isinstance(raw, dict) else []
-    llm_gaps = _parse_gaps(raw.get("gaps", []) if isinstance(raw, dict) else [])
+    if not isinstance(raw, dict):
+        raise ValueError(f"reasoning response was not a JSON object (got {type(raw).__name__})")
+    if "clusters" not in raw:
+        raise ValueError("reasoning response is missing the 'clusters' key")
+    raw_clusters = raw["clusters"]
+    if not isinstance(raw_clusters, list):
+        raise ValueError(f"reasoning 'clusters' must be a list (got {type(raw_clusters).__name__})")
+    llm_gaps = _parse_gaps(raw.get("gaps", []))
+
+    catalogue = build_claim_catalogue(claim_sets)
+    rejections: Counter = Counter()
 
     async def _finalize(index: int, raw_cluster: dict) -> ClaimCluster | None:
         if not isinstance(raw_cluster, dict):
+            rejections["malformed_cluster"] += 1
             return None
-        members = _parse_members(raw_cluster.get("members", []))
+        members = _parse_members(raw_cluster.get("members", []), catalogue, rejections)
         if not members:
+            logger.info("cluster %d dropped: no grounded members", index)
             return None
         statement = str(raw_cluster.get("statement", "")).strip() or "(unnamed cluster)"
         # A single-source cluster is always `outlier` regardless of stance, so the
@@ -215,5 +322,17 @@ async def build_claim_graph(
 
     finalized = await asyncio.gather(*(_finalize(i, rc) for i, rc in enumerate(raw_clusters)))
     clusters = [c for c in finalized if c is not None]
+    if rejections:
+        # Counts and reason codes only — never raw claim or quote text.
+        logger.warning(
+            "grounding rejected %d proposed member(s)/cluster(s): %s",
+            sum(rejections.values()),
+            dict(sorted(rejections.items())),
+        )
+    if raw_clusters and not clusters:
+        raise ValueError(
+            f"reasoning proposed {len(raw_clusters)} cluster(s) but no member was grounded in the "
+            f"extracted claims (rejections: {dict(sorted(rejections.items()))})"
+        )
     gaps = llm_gaps + derive_gaps(clusters)
     return clusters, gaps

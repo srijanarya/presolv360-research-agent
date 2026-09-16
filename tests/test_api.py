@@ -110,3 +110,51 @@ def test_view_endpoints_content_types_and_404():
         assert "text/html" in rh.headers["content-type"]
 
         assert c.get("/api/research/does-not-exist").status_code == 404
+
+
+# --- P2 — a reasoning failure must reach the client, not a plausible brief -----
+
+def test_reasoning_failure_yields_sse_error_no_done_and_no_brief():
+    """Ungroundable model output ends the run with an SSE `error`.
+
+    Wires the REAL pipeline and the REAL reasoning stage with fake fetch/extract
+    and a model that returns `{"clusters": null}`, so the failure travels the
+    production path: reason -> pipeline -> API.
+    """
+    import functools
+
+    from research_agent.models import Claim, SourceClaims, SourceDoc
+    from research_agent.pipeline import run_pipeline
+    from research_agent.reason import build_claim_graph
+
+    async def fake_fetch(pairs):
+        return [SourceDoc(id=sid, url=url, status="ok", text="adoption rose sharply") for sid, url in pairs]
+
+    async def fake_extract(topic, docs):
+        return [
+            SourceClaims(source_id=d.id, url=d.url, claims=[
+                Claim(text="Adoption is rising", supporting_quote="adoption rose sharply")])
+            for d in docs
+        ]
+
+    async def unusable_reason(topic, claim_sets, *, adversarial=True):
+        async def model(system, prompt, model_name):
+            return {"clusters": None}
+        return await build_claim_graph(topic, claim_sets, call_model=model, adversarial=adversarial)
+
+    pipeline = functools.partial(
+        run_pipeline, fetch_fn=fake_fetch, extract_fn=fake_extract, reason_fn=unusable_reason
+    )
+
+    with _client(pipeline) as c:
+        run_id = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2", "u3"]}).json()["run_id"]
+        events = _sse_events(c.get(f"/api/research/{run_id}/stream").text)
+
+        errors = [e for e in events if e["type"] == "error"]
+        assert len(errors) == 1
+        assert "clusters" in errors[0]["error"]
+        assert not any(e["type"] == "done" for e in events)
+        # No brief is retrievable in any view.
+        assert c.get(f"/api/research/{run_id}").status_code == 409
+        assert c.get(f"/api/research/{run_id}/brief.md").status_code == 409
+        assert c.get(f"/api/research/{run_id}/brief.html").status_code == 409

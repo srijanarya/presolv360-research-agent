@@ -1,0 +1,23 @@
+{
+  "note": "Golden fixture: three invalid members (unknown source, wrong-source quote, fabricated quote) plus one valid whitespace/case variant. This is the pre-Accept probe shape.",
+  "topic": "AI and hiring",
+  "claim_sets": [
+    {"source_id": "s1", "url": "https://example.org/a", "claims": [
+      {"text": "Adoption is rising", "supporting_quote": "adoption rose sharply", "confidence": "high"}]},
+    {"source_id": "s2", "url": "https://example.org/b", "claims": [
+      {"text": "Hiring slowed", "supporting_quote": "hiring slowed in Q2", "confidence": "medium"}]}
+  ],
+  "response": {"clusters": [
+      {"statement": "Adoption of AI tooling is rising", "members": [
+        {"source_id": "s1", "stance": "supports", "claim_text": "adoption   IS rising", "supporting_quote": "Adoption  Rose   Sharply", "confidence": "high"},
+        {"source_id": "s9", "stance": "supports", "claim_text": "Adoption is rising", "supporting_quote": "adoption rose sharply", "confidence": "high"},
+        {"source_id": "s2", "stance": "supports", "claim_text": "Hiring slowed", "supporting_quote": "adoption rose sharply", "confidence": "medium"},
+        {"source_id": "s2", "stance": "supports", "claim_text": "Hiring slowed", "supporting_quote": "hiring collapsed everywhere", "confidence": "low"}]},
+      {"statement": "A cluster with nothing grounded", "members": [
+        {"source_id": "s7", "stance": "supports", "claim_text": "invented", "supporting_quote": "invented", "confidence": "low"}]}],
+    "gaps": []},
+  "adversarial_members": [
+    {"source_id": "s1", "stance": "supports"},
+    {"source_id": "s2", "stance": "contradicts"}
+  ]
+}

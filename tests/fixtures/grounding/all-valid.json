@@ -1,0 +1,18 @@
+{
+  "note": "Golden fixture: every proposed member is grounded. Output must be byte-identical before and after the change.",
+  "topic": "AI and hiring",
+  "claim_sets": [
+    {"source_id": "s1", "url": "https://example.org/a", "claims": [
+      {"text": "Adoption is rising", "supporting_quote": "adoption rose sharply", "confidence": "high"}]},
+    {"source_id": "s2", "url": "https://example.org/b", "claims": [
+      {"text": "Adoption is rising", "supporting_quote": "we see the same rise", "confidence": "medium"}]}
+  ],
+  "response": {"clusters": [{"statement": "Adoption of AI tooling is rising", "members": [
+      {"source_id": "s1", "stance": "supports", "claim_text": "Adoption is rising", "supporting_quote": "adoption rose sharply", "confidence": "high"},
+      {"source_id": "s2", "stance": "supports", "claim_text": "Adoption is rising", "supporting_quote": "we see the same rise", "confidence": "medium"}]}],
+    "gaps": [{"description": "No source covers small firms", "rationale": "All five sources study enterprises."}]},
+  "adversarial_members": [
+    {"source_id": "s1", "stance": "supports"},
+    {"source_id": "s2", "stance": "supports"}
+  ]
+}
