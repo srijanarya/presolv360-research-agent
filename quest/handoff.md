@@ -46,7 +46,8 @@ flowchart TD
 8. Did you add a reason code without a test that names it?
 9. Are duplicate valid members still kept, and still unable to create consensus?
 10. Are new numbers in any document labelled measured, fixture-only proxy, historical live run, or unavailable?
-11. If you ran the pipeline live, did `quest/live-runs/diagnose.py` write a counts-only record (checked by `tests/test_live_run_records.py`), and did the raw log stay out of the repository?
+11. Never track a scored assessment or grading report; keep the findings and dispositions in `quest/review-log.md` and the report private.
+12. If you ran the pipeline live, did `quest/live-runs/diagnose.py` write a counts-only record (checked by `tests/test_live_run_records.py`), and did the raw log stay out of the repository?
 
 ## The handoff exercise, done on a disposable branch
 
