@@ -116,8 +116,8 @@ Runs 1 and 2 predate the instrumented record format; run 2 is the only one of th
 
 | Item | Where |
 |---|---|
-| Pull request | not yet opened at this commit; the draft pull request link and the hosted-check results are recorded in the next commit, which this index will name |
-| Hosted checks | none had run at this commit; recorded in the next commit together with the commit they tested |
+| Pull request | [draft PR #1](https://github.com/srijanarya/presolv360-research-agent/pull/1), `quest/p2-grounded-members` into `main`, opened 2026-09-16 at head [`cc8f191`](https://github.com/srijanarya/presolv360-research-agent/commit/cc8f191). Left as a draft: merging is a human decision, and nothing merges on an AI review alone. |
+| Hosted checks | On the pull request at head `cc8f191`, GitHub tested the merge reference `627b49c` (head plus `main`): [python-ci run 35107573466](https://github.com/srijanarya/presolv360-research-agent/actions/runs/35107573466) success (`uv sync --frozen && make check` on ubuntu-latest, full history), [node-ci run 35107573806](https://github.com/srijanarya/presolv360-research-agent/actions/runs/35107573806) success (vitest and build). This commit postdates those runs; the checks re-run on every push and the result for the final head is in the pull request's checks tab. |
 | Reviewed production revision | [`9c2cc38`](https://github.com/srijanarya/presolv360-research-agent/commit/9c2cc38); every later commit on the branch changes documentation, tests or live-run records only, and `git diff 9c2cc38 -- src/` is empty at the head this appendix describes |
 | Focused diff | [`f58b327..quest/p2-grounded-members`](https://github.com/srijanarya/presolv360-research-agent/compare/f58b327...quest/p2-grounded-members), one module under `src/`, 171 added and 30 removed lines |
 | Offline checks and their results | `uv sync --locked && make check`, offline, no credentials; [`quest/measurements.json`](https://github.com/srijanarya/presolv360-research-agent/blob/quest/p2-grounded-members/quest/measurements.json) holds the machine-readable run |
