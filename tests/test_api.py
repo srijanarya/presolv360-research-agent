@@ -51,20 +51,20 @@ def _sse_events(text: str) -> list[dict]:
 
 def test_post_research_returns_run_id():
     with _client() as c:
-        r = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2", "u3"]})
+        r = c.post("/api/research", json={"topic": "t", "urls": ["https://a.example/x", "https://b.example/y", "https://c.example/z"]})
         assert r.status_code == 200
         assert r.json()["run_id"]
 
 
 def test_post_research_rejects_too_few_urls():
     with _client() as c:
-        r = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2"]})
+        r = c.post("/api/research", json={"topic": "t", "urls": ["https://a.example/x", "https://b.example/y"]})
         assert r.status_code == 422
 
 
 def test_post_research_rejects_too_many_urls():
     with _client() as c:
-        r = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2", "u3", "u4", "u5", "u6"]})
+        r = c.post("/api/research", json={"topic": "t", "urls": ["https://a.example/1", "https://b.example/2", "https://c.example/3", "https://d.example/4", "https://e.example/5", "https://f.example/6"]})
         assert r.status_code == 422
 
 
@@ -72,7 +72,7 @@ def test_post_research_rejects_too_many_urls():
 
 def test_sse_emits_ordered_events_ending_in_done():
     with _client() as c:
-        run_id = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2", "u3"]}).json()["run_id"]
+        run_id = c.post("/api/research", json={"topic": "t", "urls": ["https://a.example/x", "https://b.example/y", "https://c.example/z"]}).json()["run_id"]
         events = _sse_events(c.get(f"/api/research/{run_id}/stream").text)
         stages = [e["stage"] for e in events if e["type"] == "stage_started"]
         assert stages == ["fetch", "extract", "reason", "synthesize"]
@@ -85,7 +85,7 @@ def test_sse_emits_error_event_on_pipeline_failure():
         raise RuntimeError("kaboom")
 
     with _client(boom) as c:
-        run_id = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2", "u3"]}).json()["run_id"]
+        run_id = c.post("/api/research", json={"topic": "t", "urls": ["https://a.example/x", "https://b.example/y", "https://c.example/z"]}).json()["run_id"]
         events = _sse_events(c.get(f"/api/research/{run_id}/stream").text)
         assert any(e["type"] == "error" for e in events)
 
@@ -94,7 +94,7 @@ def test_sse_emits_error_event_on_pipeline_failure():
 
 def test_view_endpoints_content_types_and_404():
     with _client() as c:
-        run_id = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2", "u3"]}).json()["run_id"]
+        run_id = c.post("/api/research", json={"topic": "t", "urls": ["https://a.example/x", "https://b.example/y", "https://c.example/z"]}).json()["run_id"]
         c.get(f"/api/research/{run_id}/stream")  # drive the run to completion
 
         rj = c.get(f"/api/research/{run_id}")
@@ -110,3 +110,24 @@ def test_view_endpoints_content_types_and_404():
         assert "text/html" in rh.headers["content-type"]
 
         assert c.get("/api/research/does-not-exist").status_code == 404
+
+
+# --- P4 (handoff exercise) — unsafe URLs are rejected at POST, not mid-run -----
+
+def test_post_rejects_unsafe_and_malformed_urls():
+    unsafe = [
+        "file:///etc/passwd",                        # non-http scheme
+        "http://169.254.169.254/latest/meta-data/",  # cloud metadata address
+        "http://localhost:8000/admin",               # loopback host
+        "not-a-url",                                 # no scheme, no host
+    ]
+    with _client() as c:
+        for url in unsafe:
+            body = {"topic": "t", "urls": [url, "https://a.example/x", "https://b.example/y"]}
+            assert c.post("/api/research", json=body).status_code == 422, url
+
+
+def test_post_still_accepts_ordinary_urls():
+    with _client() as c:
+        body = {"topic": "t", "urls": ["https://a.example/x", "https://b.example/y", "https://c.example/z"]}
+        assert c.post("/api/research", json=body).status_code == 200

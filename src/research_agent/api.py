@@ -17,8 +17,9 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from research_agent.fetch import is_safe_url
 from research_agent.models import Brief
 from research_agent.pipeline import run_pipeline
 from research_agent.synthesize import render_html, render_markdown
@@ -30,6 +31,19 @@ class ResearchRequest(BaseModel):
     topic: str = Field(min_length=1)
     urls: list[str] = Field(min_length=3, max_length=5)  # the brief's 3–5 sources → 422 otherwise
     adversarial: bool = True
+
+    @field_validator("urls")
+    @classmethod
+    def _urls_must_be_safe(cls, urls: list[str]) -> list[str]:
+        """Reject at the door what the fetch stage would refuse anyway (422, not a
+        half-run brief). This is input validation reusing the existing fetch-time
+        guard; it is NOT complete SSRF protection — `is_safe_url` does not resolve
+        DNS or re-check redirects, as fetch.py notes."""
+        for url in urls:
+            ok, reason = is_safe_url(url)
+            if not ok:
+                raise ValueError(f"unsafe or malformed URL {url!r}: {reason}")
+        return urls
 
 
 @dataclass
