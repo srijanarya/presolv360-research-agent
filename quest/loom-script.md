@@ -14,7 +14,7 @@ So the guarantee stopped at the stage boundary. I measured it before changing an
 
 Screen: the diff, then `_validate_member`.
 
-"One module changed, one hundred sixty four lines. I build a catalogue of the associations extraction actually produced, and a member is accepted only when the whole triple matches: source id exactly, claim text and quote completely equal after the same normalization extraction already uses. I import that normalizer rather than rewriting it, so the two cannot drift apart.
+"One module changed, one hundred seventy-one lines added and thirty removed. I build a catalogue of the associations extraction actually produced, and a member is accepted only when the whole triple matches: source id exactly, claim text and quote completely equal after the same normalization extraction already uses. I import that normalizer rather than rewriting it, so the two cannot drift apart.
 
 The decision I want to flag is the cheaper option that was rejected: checking the quote alone. The measurement rules it out. A real quote arrived under opposite claim text, and a quote-only check waves it through. So identity is the whole association.
 

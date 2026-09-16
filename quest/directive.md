@@ -97,7 +97,7 @@ Regenerate all of it with `uv sync --locked && make check`. The harness imports 
 | Item | Where |
 |---|---|
 | Runnable repository | branch `quest/p2-grounded-members`; the reviewed commit is the branch head, and the pull request records its SHA |
-| Focused diff | `git diff f58b327..HEAD -- src/` — one module, 164 added and 28 removed lines |
+| Focused diff | `git diff f58b327..HEAD -- src/` — one module, 171 added and 30 removed lines; production code last changed at `9c2cc38`, and later commits on the branch are documentation only |
 | Automated checks and their results | `make check`; `quest/measurements.json` holds the machine-readable run |
 | Decision record | `quest/adr-001-grounded-members.md` |
 | Code-review example, with dispositions | `quest/review-log.md` |
@@ -118,7 +118,15 @@ Regenerate all of it with `uv sync --locked && make check`. The harness imports 
 
 ## Effort
 
-Recorded in two separate buckets, from `effort-log.md`. Pre-Accept preparation covers the repository audit, the routing wiring and the housekeeping, and happened before the MatchHire timer started. Assignment-window work is everything after acceptance. Both are wall clock for a single operator, and the eight-hour figure in the brief was a suggestion, not a cap.
+Wall clock for a single operator, reconciled from file timestamps, commit times and the session transcript, **as of 2026-09-16 11:25 IST**. The eight-hour figure in the brief was a suggestion, not a cap.
+
+| Bucket | Recorded | Not recorded |
+|---|---|---|
+| Pre-Accept preparation: repository audit, model-routing wiring, housekeeping, all before the MatchHire timer started | **1 h 48 min** measured across three sessions | one earlier audit session of **unknown** length; it is not estimated |
+| Assignment window, from acceptance at 10:01 IST on 2026-09-16 to the as-of time | **1:24** in one continuous session, of which about 35 min was rework on my own defects | the Loom recording and MatchHire submission, which are still to come |
+| Human review time | | Srijan's reviews, three plan rounds and the findings that opened two correction rounds are **not measured** |
+
+The reused pre-Accept material is disclosed as such: the baseline tests, the 3-member defect probe and the first source review all predate acceptance.
 
 ## Limitations, stated rather than buried
 

@@ -2,6 +2,19 @@
 
 Model identities below come from host-recorded metadata: the router lane or the exact CLI invocation. None of them comes from a model's own claim about itself.
 
+## What each review actually saw
+
+The reviews did **not** all see the same revision. Production code changed after each of the first three, and the last change is covered by a focused delta review.
+
+| # | Reviewer | Revision reviewed | Snapshot or brief sha256 | Production code changed afterwards? |
+|---|---|---|---|---|
+| 2 | `gpt-5.6-terra` | `92c59b5` | `3895ec58…` | yes, `50b0a53` (log reasons) |
+| 3 | `gpt-5.6-terra` re-review | `50b0a53` | `756a0015…` | yes, `9c2cc38` via `df6f9cc` (harness only) |
+| 4 | `deepseek-flash` | `df6f9cc` | `456d9140…` | yes, `9c2cc38` (diagnostics) |
+| 5 | `gpt-5.6-terra`, delta only | `df6f9cc..9c2cc38` | `55eb8376…` | no; the commit after it is documentation only |
+
+So the two vendors reviewed different revisions. Coverage is cross-vendor in the sense that OpenAI and DeepSeek each reviewed the full module at some revision, and the final production delta was reviewed once, by OpenAI. It is not two vendors on one identical snapshot.
+
 ## Reviews that completed
 
 ### 1. Free worker, scenario coverage, before the first commit
@@ -44,7 +57,14 @@ Model identities below come from host-recorded metadata: the router lane or the 
 - **Six "could mislead a reader" findings.** Accepted and fixed: the module docstring overclaimed that gap derivation is filtered, when model-surfaced gaps are not; a docstring said "no usable `clusters` list", looser than the code; a pre-existing comment called the single-source skip a "no-op", which is true only for the label; and the harness's baseline column said "reference" when the baseline is recomputed from the recorded SHA on every run. **Rejected:** the claim that the mixed fixture holds "four proposed members, three invalid" reads only its first cluster; the fixture proposes five across two clusters, four invalid, which the evidence table states. The row was reworded anyway so no reader trips the same way. Also noted: the one pytest warning in the evidence is the pre-existing `starlette` TestClient deprecation, unrelated to this change.
 - **Out of the reviewer's reach, stated by it:** criterion 14's pipeline and API path was not in the snapshot; it is covered by the SSE test, which the host-run evidence shows passing.
 
-With this review the completed independent coverage is **two vendors, OpenAI and DeepSeek**, on the same frozen material.
+### 5. Focused delta review, `gpt-5.6-terra`, of `df6f9cc..9c2cc38`
+
+- **Why:** commit `9c2cc38` changed production code after the DeepSeek review, so that delta had not been independently seen.
+- **Brief:** sha256 `55eb8376…`: the production, test and harness deltas, the full module, and evidence at `9c2cc38`.
+- **Verdict, verified from the diff:** the delta changes diagnostics only, which are rejection and log counts and the text of the all-rejected error. Returned members, classifications and gaps are unchanged. No defect introduced. Its one stated assumption is that model construction has no hidden side effects, which is true of the plain pydantic models.
+- **Disposition:** nothing to change.
+
+With reviews 2 to 5, both vendors have reviewed the full module, and every production change has been reviewed by at least one of them. See the table at the top for which revision each saw.
 
 ## Reviews that did NOT complete
 
