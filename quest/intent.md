@@ -50,6 +50,7 @@ Impact, maintenance effort and operating cost below are **subjective planning sc
 - No authentication, rate limiting or PDF ingestion.
 - No smart-quote or typographic normalization; that lives on a separate branch and is not in this baseline.
 - No attempt to judge whether a grounded claim is *true*. This change checks provenance only.
+- No grounding of a cluster's model-written `statement`, and no verification of model-surfaced gaps. Both are named limitations, recorded in ADR 001, not silent omissions.
 
 ## What "done" means
 

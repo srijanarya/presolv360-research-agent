@@ -40,3 +40,10 @@ Validate every proposed member against a catalogue of the associations extractio
 **Reversibility.** The change is additive within one module and is reverted by dropping the filter call. The fixtures and measurements stay valid either way, so a revert can be evaluated against the same numbers.
 
 **What this does not do.** It checks provenance, not truth. A correctly grounded claim can still be wrong, and a source can still be wrong. Nothing here judges that.
+
+Two further gaps are deliberate, and both were named by the independent review of brief `756a0015`:
+
+- **A cluster's `statement` is not grounded.** It is the model's own neutral summary of the cluster. Grounded members can therefore sit under a statement that overstates or drifts from what those sources actually said, and the cluster is then classified and presented against that statement. Checking it needs semantic comparison, not the exact-association matching this change uses.
+- **Model-surfaced gaps are accepted as written.** Nothing verifies that a named sub-topic is genuinely unaddressed by every source. `derive_gaps`, the part that is computed from the graph rather than asserted by the model, is unaffected.
+
+Both are out of scope here and are recorded as the next things worth fixing, not as solved.

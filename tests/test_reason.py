@@ -328,12 +328,18 @@ async def test_malformed_member_collection_is_skipped_not_fatal():
     assert [c.statement for c in clusters] == ["keep"]
 
 
-async def test_null_non_list_and_missing_clusters_raise_value_error():
+async def test_null_non_list_and_missing_clusters_raise_descriptive_value_error():
     import pytest
-    for response in ({"clusters": None}, {"clusters": "nope"}, {"gaps": []}, ["not", "an", "object"]):
+    cases = {  # criterion 11: the message must say what was wrong, not just fail
+        '{"clusters": null}': ({"clusters": None}, "must be a list"),
+        '{"clusters": "nope"}': ({"clusters": "nope"}, "must be a list"),
+        "missing key": ({"gaps": []}, "missing the 'clusters' key"),
+        "not an object": (["not", "an", "object"], "not a JSON object"),
+    }
+    for label, (response, expected) in cases.items():
         async def fake(system, prompt, model, _r=response):
             return _r
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=expected):
             await build_claim_graph("t", _grounded_sets(), call_model=fake, adversarial=False)
 
 
@@ -392,20 +398,26 @@ async def test_multiplicity_counted_after_validation_skips_recheck():
     assert counters["adv"] == 0
 
 
-async def test_revision_ignored_for_ambiguous_original():
+async def test_revision_ignored_for_ambiguous_original(caplog):
+    import logging
     counters = {"adv": 0, "cluster": 0}
     members = [_member(), _member(), _member(source_id="s2", claim_text="Hiring slowed", quote="hiring slowed in Q2")]
-    clusters, _ = await _graph([{"statement": "x", "members": members}], adversarial=True, counters=counters,
-                               adv_members=[{"source_id": "s1", "stance": "contradicts"}])
+    with caplog.at_level(logging.INFO, logger="research_agent.reason"):
+        clusters, _ = await _graph([{"statement": "x", "members": members}], adversarial=True, counters=counters,
+                                   adv_members=[{"source_id": "s1", "stance": "contradicts"}])
     assert [m.stance for m in clusters[0].members if m.source_id == "s1"] == ["supports", "supports"]
+    assert "ambiguous_original" in " ".join(r.getMessage() for r in caplog.records)
 
 
-async def test_conflicting_revisions_for_one_source_are_ignored():
+async def test_conflicting_revisions_for_one_source_are_ignored(caplog):
+    import logging
     members = [_member(), _member(source_id="s2", claim_text="Hiring slowed", quote="hiring slowed in Q2")]
-    clusters, _ = await _graph([{"statement": "x", "members": members}], adversarial=True,
-                               adv_members=[{"source_id": "s1", "stance": "contradicts"},
-                                            {"source_id": "s1", "stance": "supports"}])
+    with caplog.at_level(logging.INFO, logger="research_agent.reason"):
+        clusters, _ = await _graph([{"statement": "x", "members": members}], adversarial=True,
+                                   adv_members=[{"source_id": "s1", "stance": "contradicts"},
+                                                {"source_id": "s1", "stance": "supports"}])
     assert all(m.stance == "supports" for m in clusters[0].members)
+    assert "conflicting_revisions" in " ".join(r.getMessage() for r in caplog.records)
 
 
 async def test_recheck_exception_keeps_naive_stances():
@@ -489,3 +501,104 @@ async def test_every_ignored_revision_reason_is_logged(caplog):
         assert reason in logged, (reason, logged)
         assert all(m.stance == "supports" for m in clusters[0].members)
         assert "adoption rose sharply" not in logged  # no source text in logs
+
+
+# --- strengthened after the gpt-5.6-terra re-review of brief 756a0015 ----------
+
+async def test_valid_unique_agreeing_revision_is_applied_after_validation(caplog):
+    """Criterion 8: a revision that IS unambiguous must still be applied.
+
+    Guards the opposite failure from the ignore-cases: an implementation that
+    dropped every revision would pass those and fail here.
+    """
+    import logging
+    members = [_member(), _member(source_id="s2", claim_text="Hiring slowed", quote="hiring slowed in Q2")]
+    with caplog.at_level(logging.INFO, logger="research_agent.reason"):
+        clusters, _ = await _graph([{"statement": "x", "members": members}], adversarial=True,
+                                   adv_members=[{"source_id": "s1", "stance": "supports"},
+                                                {"source_id": "s2", "stance": "contradicts"}])
+    stances = {m.source_id: m.stance for m in clusters[0].members}
+    assert stances == {"s1": "supports", "s2": "contradicts"}
+    assert clusters[0].classification == "contested"
+    assert "recheck revisions ignored" not in " ".join(r.getMessage() for r in caplog.records)
+
+
+async def test_no_claim_or_quote_text_reaches_any_log(caplog):
+    """Criterion 15, checked across BOTH log paths and every fixture string."""
+    import logging
+    secrets = ["adoption rose sharply", "hiring slowed in Q2", "Adoption is rising", "Hiring slowed",
+               "hiring collapsed everywhere"]
+    members = [_member(), _member(source_id="s9", quote="invented"),
+               _member(source_id="s2", claim_text="Hiring slowed", quote="hiring collapsed everywhere"),
+               _member(source_id="s2", claim_text="Hiring slowed", quote="hiring slowed in Q2")]
+    with caplog.at_level(logging.INFO, logger="research_agent.reason"):
+        await _graph([{"statement": "x", "members": members}], adversarial=True,
+                     adv_members=[{"source_id": "s404", "stance": "supports"}])
+    logged = " ".join(r.getMessage() for r in caplog.records)
+    assert "grounding rejected" in logged and "recheck revisions ignored" in logged
+    for secret in secrets:
+        assert secret not in logged, secret
+        assert secret.lower() not in logged.lower(), secret
+
+
+# --- the two golden fixtures, asserted in the test suite (not only the harness) -
+
+def _load_fixture(name: str) -> dict:
+    import json
+    from pathlib import Path
+    return json.loads((Path(__file__).parent / "fixtures" / "grounding" / f"{name}.json").read_text(encoding="utf-8"))
+
+
+def _fixture_model(data: dict):
+    async def fake(system: str, prompt: str, model: str):
+        if "stress-test" in system:
+            return {"for": "f", "against": "a", "members": data.get("adversarial_members", [])}
+        return data["response"]
+    return fake
+
+
+async def _run_fixture(name: str, *, adversarial: bool):
+    data = _load_fixture(name)
+    sets = [SourceClaims.model_validate(s) for s in data["claim_sets"]]
+    return await build_claim_graph(data["topic"], sets, call_model=_fixture_model(data), adversarial=adversarial)
+
+
+async def test_golden_all_valid_fixture_output_is_stable_and_has_no_timestamps():
+    first_clusters, first_gaps = await _run_fixture("all-valid", adversarial=True)
+    second_clusters, second_gaps = await _run_fixture("all-valid", adversarial=True)
+    dump = [c.model_dump_json() for c in first_clusters]
+    assert dump == [c.model_dump_json() for c in second_clusters]  # byte-identical across runs
+    assert [g.model_dump_json() for g in first_gaps] == [g.model_dump_json() for g in second_gaps]
+    assert len(first_clusters) == 1
+    assert [m.source_id for m in first_clusters[0].members] == ["s1", "s2"]
+    assert first_clusters[0].classification == "consensus"
+    assert [g.description for g in first_gaps] == ["No source covers small firms"]
+    # Nothing time-varying is serialized by this stage, so the golden cannot drift.
+    assert not any(key in dump[0] for key in ("generated_at", "timestamp", "20260"))
+
+
+async def test_golden_mixed_fixture_survivors_relabeling_gaps_and_removal():
+    clusters, gaps = await _run_fixture("mixed-invalid", adversarial=False)
+    assert len(clusters) == 1, "the second cluster had nothing grounded and must be dropped"
+    assert clusters[0].statement == "Adoption of AI tooling is rising"
+    assert [(m.source_id, m.claim_text, m.supporting_quote) for m in clusters[0].members] == [
+        ("s1", "adoption   IS rising", "Adoption  Rose   Sharply")
+    ]
+    assert clusters[0].classification == "outlier", "relabelled from the baseline's consensus"
+    assert [g.description for g in gaps] == ["Only one source addresses: Adoption of AI tooling is rising"]
+
+
+async def test_golden_mixed_fixture_drops_a_model_call_versus_the_baseline():
+    """Fixture-only cost proxy: 2 calls become 1 once ungrounded members are gone."""
+    data = _load_fixture("mixed-invalid")
+    calls = {"n": 0}
+
+    async def counting(system: str, prompt: str, model: str):
+        calls["n"] += 1
+        if "stress-test" in system:
+            return {"for": "f", "against": "a", "members": data.get("adversarial_members", [])}
+        return data["response"]
+
+    sets = [SourceClaims.model_validate(s) for s in data["claim_sets"]]
+    await build_claim_graph(data["topic"], sets, call_model=counting, adversarial=True)
+    assert calls["n"] == 1, "only the clustering call: the survivor is single-source, so no recheck"
