@@ -1,0 +1,27 @@
+| Category | Earned / max | Cited evidence | Concrete deductions |
+|---|---:|---|---|
+| Problem selection & scope | 18 / 20 | `quest/intent.md` §§ “Evidence,” “What I compared,” “Non-goals”; `quest/adr-001-grounded-members.md` §§ “Alternatives considered,” “What this does not do” | Baseline defect is convincingly reproduced, but recurrence and production frequency are explicitly unproven; prioritization scores are subjective. |
+| Engineering & review quality | 25 / 30 | `src/research_agent/reason.py` §§ grounding, `_adversarial_recheck`, `build_claim_graph`; focused diff; ADR §§ “Decision,” “Consequences” | The triple-association gate is focused and sound for its stated contract. However, cluster `statement` and model-surfaced gaps remain ungrounded, and strict equality demonstrably rejects potentially useful paraphrases (8% and 45% in two runs). Repeated source IDs widen the accepted association set. |
+| Verification & maintainability | 22 / 25 | `Makefile`; `scripts/measure.py`; `tests/test_reason.py`; golden fixtures; host fresh `make check` result | Strong offline, baseline-recomputed harness and targeted API-path test. No hosted CI/check-run evidence exists, and directive’s “under 4 s” claim conflicts with the host-observed whole command time of about 4.20 s. |
+| Human & AI workflow | 12 / 15 | `AGENTS.md` §§ “Verification,” “Review responsibilities”; `quest/review-log.md`; Loom narration s12–s14 | Clear review boundaries and concrete accepted/rejected findings. Credit is for the documented correction trail, not for adopting reviewers’ conclusions. Human approval is asserted, but no independently attributable human-review artifact is supplied; vendors did not review one identical final snapshot. |
+| Communication & handoff | 7 / 10 | `quest/handoff.md`; `quest/directive.md` Appendix; Loom script s00–s15 | Strong handoff and candid limits. Submission packaging is internally stale: Appendix says PR is opened, but host found none; it says Loom “to be added,” while a final Loom was supplied; effort text says recording/submission are still to come. |
+
+**Current score: 84 / 100**
+
+Overall, this is a credible, focused trust-boundary fix with unusually good fixture-based before/after evidence and a maintainable explanation of the tradeoff. A plausible reviewer-variation range is **80–88**, chiefly depending on how heavily they penalize the intentionally ungrounded summaries/gaps, real-output recall loss, and stale submission metadata.
+
+Five strongest deductions/risks:
+
+1. **Verified inconsistency:** `quest/directive.md` Appendix line 101 claims an opened PR, while the host’s successful `gh pr list` returned none.
+2. **Verified inconsistency:** Appendix line 111 says the Loom is still to be added, and effort says recording/submission remain future work; the supplied final Loom contradicts that.
+3. **Reasonable scoped limitation:** `reason.py` grounds members, not cluster statements or model-proposed gaps; ADR 001 expressly acknowledges both. This limits the end-to-end “trust” claim.
+4. **Reasonable scoped limitation:** strict association equality prevents fabricated pairings but rejected 20/44 and 5/64 proposed real-run members (`quest/live-runs/README.md`). That is an intentional recall-for-trust tradeoff, not evidence of a failed fix.
+5. **Suspected code issue:** `reason.py` logs the raw exception in the adversarial-recheck failure path, despite `AGENTS.md` requiring logs to carry no source text. The supplied tests allow arbitrary exception text there; an upstream exception could expose model/source-derived content. This is a risk, not a verified leak from the supplied run.
+
+Rubric/content shortcomings are primarily the residual ungrounded `statement`/gaps, strict-recall tradeoff, repeated-ID union behavior, lack of production recurrence evidence, and absent hosted CI evidence. Final-packaging shortcomings are the stale PR/Loom/effort wording and non-immutable references in the handoff index.
+
+If limited strictly to correcting existing links and effort/provenance wording—without changing code, results, or claiming human work—the score becomes **86 / 100**. That would mean inserting the supplied Loom URL, replacing the false PR assertion with the branch/diff link and an honest “no PR returned at audit,” and updating effort/provenance wording to distinguish pinned run evidence from the current documentation-only revision. The two-point gain is communication/handoff only; it does not cure any engineering or verification limitation.
+
+I did not inspect actual video frames/audio, and I did not independently execute commands. Video credit is based only on the supplied narration and host observations: it is within five minutes, has a coherent walkthrough, disclosure, and accessible playback, but I cannot assess pacing, clarity of on-screen proof, or whether the visual demonstration matches the narration.
+
+This demonstrates solid AI-native engineering-lead judgment in its insistence on provenance, reproducibility, explicit review boundaries, and candid limitations. The follow-up interview should probe the policy decision behind rejecting paraphrased-but-quoted members: how they would introduce stable claim IDs or semantic validation, how they would measure harmful false rejections versus fabricated provenance, and how they would enforce the no-source-text logging rule across model and transport exceptions.

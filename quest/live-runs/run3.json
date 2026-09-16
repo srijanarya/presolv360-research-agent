@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "attempt": 3,
+  "git_sha": "72bf7d7ce85d9119479645c77e88eb2a3d440549",
+  "git_dirty": false,
+  "script_sha256": "5dbfea76221a669f6a8044f6b4ee70bd8b196dc9b60ecf70657dca9b1ed131b2",
+  "input_path": "inputs/ai-jobs.json",
+  "input_sha256": "3b4f776273ae7425117987d0348de22eef27df606a31dd1441a6ad4d971ed2c7",
+  "started_utc": "2026-09-16T13:36:14Z",
+  "finished_utc": "2026-09-16T13:40:57Z",
+  "status": "completed",
+  "exit_code": 0,
+  "error_type": null,
+  "sources_ok": 5,
+  "claims_extracted": 66,
+  "proposed": 66,
+  "accepted": 46,
+  "rejected": 20,
+  "rejected_by_reason": {
+    "ungrounded_pair": 20
+  },
+  "rejected_fraction": 0.303,
+  "distinct_extracted": 66,
+  "distinct_accepted": 46,
+  "coverage_overall": 0.697,
+  "per_source": {
+    "s1": {
+      "extracted": 12,
+      "distinct_extracted": 12,
+      "proposed": 12,
+      "accepted": 10,
+      "rejected": 2,
+      "distinct_accepted": 10,
+      "coverage": 0.8333
+    },
+    "s2": {
+      "extracted": 12,
+      "distinct_extracted": 12,
+      "proposed": 12,
+      "accepted": 9,
+      "rejected": 3,
+      "distinct_accepted": 9,
+      "coverage": 0.75
+    },
+    "s3": {
+      "extracted": 14,
+      "distinct_extracted": 14,
+      "proposed": 14,
+      "accepted": 11,
+      "rejected": 3,
+      "distinct_accepted": 11,
+      "coverage": 0.7857
+    },
+    "s4": {
+      "extracted": 15,
+      "distinct_extracted": 15,
+      "proposed": 15,
+      "accepted": 9,
+      "rejected": 6,
+      "distinct_accepted": 9,
+      "coverage": 0.6
+    },
+    "s5": {
+      "extracted": 13,
+      "distinct_extracted": 13,
+      "proposed": 13,
+      "accepted": 7,
+      "rejected": 6,
+      "distinct_accepted": 7,
+      "coverage": 0.5385
+    }
+  },
+  "sources_with_no_survivors": [],
+  "unknown_source": {
+    "proposed": 0,
+    "rejected": 0
+  },
+  "rejection_detail": {
+    "quote_exact_claim_rewritten": 19,
+    "quote_is_substring_of_real_quote": 1
+  },
+  "final_clusters": 24,
+  "final_members": 46,
+  "classification": {
+    "consensus": 6,
+    "contested": 1,
+    "outlier": 17
+  }
+}
