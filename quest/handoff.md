@@ -51,7 +51,7 @@ flowchart TD
 
 To show this is executable by someone else, I performed the smallest adjacent task myself and kept it **out** of the submitted P2 diff: branch `quest/p4-api-url-validation`, commit `a5b45a9`.
 
-It rejects unsafe URLs at `POST /api/research` by reusing the existing fetch-time `is_safe_url` guard, so a bad URL is a 422 at the door rather than a failure mid-run. Its patch and test evidence are retained privately; 66 tests pass on that branch.
+It rejects unsafe URLs at `POST /api/research` by reusing the existing fetch-time `is_safe_url` guard, so a bad URL is a 422 at the door rather than a failure mid-run. Its patch and its test output are in `quest/p4-handoff/` in this branch, and the same commit sits on branch `quest/p4-api-url-validation`; 66 tests pass there.
 
 Two honest notes about it. First, it is **input validation, not complete SSRF protection**: `is_safe_url` does not resolve DNS and does not re-check redirects, which `fetch.py` already says. A hostname that resolves to a private address still passes. Second, adding it **broke four pre-existing API tests** that posted placeholder URLs such as `u1`, and those tests had to be updated. That is exactly the kind of cost a handoff note should warn about rather than hide.
 

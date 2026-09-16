@@ -1,0 +1,31 @@
+{
+  "clusters": [
+    {
+      "id": "c1",
+      "statement": "Adoption of AI tooling is rising",
+      "classification": "consensus",
+      "members": [
+        {
+          "source_id": "s1",
+          "stance": "supports",
+          "claim_text": "Adoption is rising",
+          "supporting_quote": "adoption rose sharply",
+          "confidence": "high"
+        },
+        {
+          "source_id": "s2",
+          "stance": "supports",
+          "claim_text": "Adoption is rising",
+          "supporting_quote": "we see the same rise",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ],
+  "gaps": [
+    {
+      "description": "No source covers small firms",
+      "rationale": "All five sources study enterprises."
+    }
+  ]
+}

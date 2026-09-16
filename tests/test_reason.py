@@ -563,24 +563,33 @@ async def _run_fixture(name: str, *, adversarial: bool):
     return await build_claim_graph(data["topic"], sets, call_model=_fixture_model(data), adversarial=adversarial)
 
 
-async def test_golden_all_valid_fixture_output_is_stable_and_has_no_timestamps():
-    first_clusters, first_gaps = await _run_fixture("all-valid", adversarial=True)
-    second_clusters, second_gaps = await _run_fixture("all-valid", adversarial=True)
-    dump = [c.model_dump_json() for c in first_clusters]
-    assert dump == [c.model_dump_json() for c in second_clusters]  # byte-identical across runs
-    assert [g.model_dump_json() for g in first_gaps] == [g.model_dump_json() for g in second_gaps]
-    assert len(first_clusters) == 1
-    assert [m.source_id for m in first_clusters[0].members] == ["s1", "s2"]
-    assert first_clusters[0].classification == "consensus"
-    assert [g.description for g in first_gaps] == ["No source covers small firms"]
+def _expected(name: str) -> dict:
+    """The tracked golden output. Regenerate ONLY deliberately, with a diff a human reads."""
+    import json
+    from pathlib import Path
+    return json.loads((Path(__file__).parent / "fixtures" / "grounding" / f"{name}.expected.json").read_text(encoding="utf-8"))
+
+
+def _serialize(clusters, gaps) -> dict:
+    return {"clusters": [c.model_dump() for c in clusters], "gaps": [g.model_dump() for g in gaps]}
+
+
+async def test_golden_all_valid_fixture_matches_tracked_expected_output():
+    clusters, gaps = await _run_fixture("all-valid", adversarial=True)
+    got = _serialize(clusters, gaps)
+    assert got == _expected("all-valid")  # full output, against a file, not against another run
+    assert [m.source_id for m in clusters[0].members] == ["s1", "s2"]
+    assert clusters[0].classification == "consensus"
     # Nothing time-varying is serialized by this stage, so the golden cannot drift.
-    assert not any(key in dump[0] for key in ("generated_at", "timestamp", "20260"))
+    import json
+    assert not any(key in json.dumps(got) for key in ("generated_at", "timestamp", "2026"))
 
 
-async def test_golden_mixed_fixture_survivors_relabeling_gaps_and_removal():
+async def test_golden_mixed_fixture_matches_tracked_expected_output():
     clusters, gaps = await _run_fixture("mixed-invalid", adversarial=False)
+    assert _serialize(clusters, gaps) == _expected("mixed-invalid")
+    # And the properties the expected file encodes, stated so a reader sees them:
     assert len(clusters) == 1, "the second cluster had nothing grounded and must be dropped"
-    assert clusters[0].statement == "Adoption of AI tooling is rising"
     assert [(m.source_id, m.claim_text, m.supporting_quote) for m in clusters[0].members] == [
         ("s1", "adoption   IS rising", "Adoption  Rose   Sharply")
     ]

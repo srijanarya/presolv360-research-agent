@@ -26,8 +26,19 @@ BASELINE_SHA = "f58b327"  # tag quest-baseline: public main + pre-Accept houseke
 REASON_PATH = "src/research_agent/reason.py"
 
 sys.path.insert(0, str(ROOT / "src"))
+from research_agent.extract import _norm_ws  # noqa: E402  (unchanged in both versions)
 from research_agent.models import SourceClaims  # noqa: E402
 import research_agent.reason as current_reason  # noqa: E402
+
+
+def _norm(text: str) -> str:
+    return _norm_ws(text).lower()
+
+
+def _catalogue(data: dict) -> set[tuple[str, str, str]]:
+    """Every (source_id, claim_text, quote) association the fixture's extraction produced."""
+    return {(s["source_id"], _norm(c["text"]), _norm(c["supporting_quote"]))
+            for s in data["claim_sets"] for c in s["claims"]}
 
 
 def _git(*args: str) -> str:
@@ -79,14 +90,18 @@ async def run_one(module, data: dict, *, adversarial: bool) -> dict:
         )
     except Exception as exc:  # noqa: BLE001 — the outcome IS the measurement
         return {"outcome": type(exc).__name__, "detail": str(exc)[:120], "model_calls": counters["model_calls"]}
+    catalogue = _catalogue(data)
+    survivors = [(m.source_id, _norm(m.claim_text), _norm(m.supporting_quote)) for c in clusters for m in c.members]
     return {
         "outcome": "ok",
         "model_calls": counters["model_calls"],
-        "members": [[m.source_id for m in c.members] for c in clusters],
-        "member_count": sum(len(c.members) for c in clusters),
+        # Full serialized output: the only thing "unchanged" may legitimately mean.
+        "clusters": [c.model_dump() for c in clusters],
+        "gaps": [g.model_dump() for g in gaps],
         "classifications": [c.classification for c in clusters],
-        "clusters": len(clusters),
-        "gaps": len(gaps),
+        # Retention judged per association, not by counting heads.
+        "valid_retained": sum(1 for t in survivors if t in catalogue),
+        "invalid_retained": sum(1 for t in survivors if t not in catalogue),
     }
 
 
@@ -170,16 +185,16 @@ async def main() -> int:
     b, c = grounding["baseline"], grounding["current"]
     # The mixed fixture proposes 5 members: 1 valid (a whitespace/case variant of a
     # real s1 association) and 4 invalid (unknown source x2, wrong-source quote,
-    # fabricated quote). The baseline retains all 5.
-    valid, proposed = 1, 5
-    b_kept = b["mixed_no_adversarial"]["member_count"]
-    c_kept = c["mixed_no_adversarial"].get("member_count", 0)
+    # fabricated quote). It is a superset of the 3-invalid pre-Accept probe.
+    bm, cm = b["mixed_no_adversarial"], c["mixed_no_adversarial"]
+    same_valid = (json.dumps(b["all_valid_adversarial"], sort_keys=True)
+                  == json.dumps(c["all_valid_adversarial"], sort_keys=True))
     rows = [
-        ("invalid members retained (of 4, mixed fixture)", b_kept - valid, max(c_kept - valid, 0), "measured"),
-        ("valid normalized member retained (of 1)", min(b_kept, valid), min(c_kept, valid), "measured"),
-        ("mixed fixture classification", b["mixed_no_adversarial"]["classifications"][0], c["mixed_no_adversarial"]["classifications"][0], "measured"),
+        ("invalid members retained (of 4, mixed fixture)", bm["invalid_retained"], cm.get("invalid_retained", 0), "measured"),
+        ("valid normalized member retained (of 1)", bm["valid_retained"], cm.get("valid_retained", 0), "measured"),
+        ("mixed fixture classification", bm["classifications"][0], cm["classifications"][0], "measured"),
         ("mixed fixture model calls (adversarial)", b["mixed_adversarial"]["model_calls"], c["mixed_adversarial"]["model_calls"], "fixture-only cost proxy"),
-        ("all-valid output unchanged", "n/a", "byte-identical" if b["all_valid_adversarial"] == c["all_valid_adversarial"] else "DIFFERS", "measured"),
+        ("all-valid full output, baseline vs current", "reference", "identical" if same_valid else "DIFFERS", "measured"),
         ("null clusters outcome", b["null_clusters"]["outcome"], c["null_clusters"]["outcome"], "measured"),
     ]
     width = max(len(r[0]) for r in rows)
@@ -194,16 +209,22 @@ async def main() -> int:
 
     if args.check:
         failures = []
-        if c["mixed_no_adversarial"]["classifications"] != ["outlier"]:
+        if cm["classifications"] != ["outlier"]:
             failures.append("surviving mixed cluster must be outlier")
-        if b["all_valid_adversarial"] != c["all_valid_adversarial"]:
-            failures.append("all-valid golden output changed")
+        if not same_valid:
+            failures.append("all-valid output differs between baseline and current (full serialization)")
         if c["null_clusters"]["outcome"] != "ValueError":
             failures.append("null clusters must raise ValueError")
-        if b_kept != proposed:
-            failures.append(f"baseline must retain all {proposed} proposed members, {proposed - valid} of them invalid (the defect)")
-        if c_kept != valid:
-            failures.append(f"current must retain exactly the {valid} valid member")
+        if (bm["invalid_retained"], bm["valid_retained"]) != (4, 1):
+            failures.append("baseline must retain all 4 invalid and the 1 valid association (the defect)")
+        if (cm.get("invalid_retained"), cm.get("valid_retained")) != (0, 1):
+            failures.append("current must retain 0 invalid and exactly the 1 valid association")
+        expected_dir = FIXTURES
+        for name, key in (("all-valid", "all_valid_adversarial"), ("mixed-invalid", "mixed_no_adversarial")):
+            expected = json.loads((expected_dir / f"{name}.expected.json").read_text(encoding="utf-8"))
+            got = {"clusters": c[key]["clusters"], "gaps": c[key]["gaps"]}
+            if json.dumps(expected, sort_keys=True) != json.dumps(got, sort_keys=True):
+                failures.append(f"{name} output differs from its tracked expected file")
         for f in failures:
             print("FAIL:", f)
         return 1 if failures else 0

@@ -24,6 +24,8 @@ Measured before any change, by a stage-level probe against the baseline with the
 | Opposite claim text attached to a genuine quote, retained | 1 of 1 |
 | Model returning `{"clusters": null}` | `TypeError` |
 
+The tracked fixture used by `make check` is a superset of this probe: it adds a fourth invalid member in a second cluster, so it also exercises empty-cluster removal. The probe measured 3 of 3 retained; the fixture measures 4 of 4 at the baseline. They are two measurements, not one restated.
+
 Honest limits. Three synthetic cases prove the hole exists and is reachable. They do not establish a production failure rate. `main` shows repeated work on reasoning trust, in `8edb3da`, and stance and normalization fixes exist on a separate `r2-review-fixes` branch, in `76fd4af`, which is not part of this baseline. **Recurrence of this exact bug is unproven, and I am not claiming it.**
 
 ## What I compared

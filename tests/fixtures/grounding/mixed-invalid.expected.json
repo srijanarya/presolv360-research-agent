@@ -1,0 +1,24 @@
+{
+  "clusters": [
+    {
+      "id": "c1",
+      "statement": "Adoption of AI tooling is rising",
+      "classification": "outlier",
+      "members": [
+        {
+          "source_id": "s1",
+          "stance": "supports",
+          "claim_text": "adoption   IS rising",
+          "supporting_quote": "Adoption  Rose   Sharply",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "gaps": [
+    {
+      "description": "Only one source addresses: Adoption of AI tooling is rising",
+      "rationale": "Single-source claim \u2014 not corroborated by any other source."
+    }
+  ]
+}

@@ -13,78 +13,212 @@
       "all_valid_no_adversarial": {
         "outcome": "ok",
         "model_calls": 1,
-        "members": [
-          [
-            "s1",
-            "s2"
-          ]
+        "clusters": [
+          {
+            "id": "c1",
+            "statement": "Adoption of AI tooling is rising",
+            "classification": "consensus",
+            "members": [
+              {
+                "source_id": "s1",
+                "stance": "supports",
+                "claim_text": "Adoption is rising",
+                "supporting_quote": "adoption rose sharply",
+                "confidence": "high"
+              },
+              {
+                "source_id": "s2",
+                "stance": "supports",
+                "claim_text": "Adoption is rising",
+                "supporting_quote": "we see the same rise",
+                "confidence": "medium"
+              }
+            ]
+          }
         ],
-        "member_count": 2,
+        "gaps": [
+          {
+            "description": "No source covers small firms",
+            "rationale": "All five sources study enterprises."
+          }
+        ],
         "classifications": [
           "consensus"
         ],
-        "clusters": 1,
-        "gaps": 1
+        "valid_retained": 2,
+        "invalid_retained": 0
       },
       "all_valid_adversarial": {
         "outcome": "ok",
         "model_calls": 2,
-        "members": [
-          [
-            "s1",
-            "s2"
-          ]
+        "clusters": [
+          {
+            "id": "c1",
+            "statement": "Adoption of AI tooling is rising",
+            "classification": "consensus",
+            "members": [
+              {
+                "source_id": "s1",
+                "stance": "supports",
+                "claim_text": "Adoption is rising",
+                "supporting_quote": "adoption rose sharply",
+                "confidence": "high"
+              },
+              {
+                "source_id": "s2",
+                "stance": "supports",
+                "claim_text": "Adoption is rising",
+                "supporting_quote": "we see the same rise",
+                "confidence": "medium"
+              }
+            ]
+          }
         ],
-        "member_count": 2,
+        "gaps": [
+          {
+            "description": "No source covers small firms",
+            "rationale": "All five sources study enterprises."
+          }
+        ],
         "classifications": [
           "consensus"
         ],
-        "clusters": 1,
-        "gaps": 1
+        "valid_retained": 2,
+        "invalid_retained": 0
       },
       "mixed_no_adversarial": {
         "outcome": "ok",
         "model_calls": 1,
-        "members": [
-          [
-            "s1",
-            "s9",
-            "s2",
-            "s2"
-          ],
-          [
-            "s7"
-          ]
+        "clusters": [
+          {
+            "id": "c1",
+            "statement": "Adoption of AI tooling is rising",
+            "classification": "consensus",
+            "members": [
+              {
+                "source_id": "s1",
+                "stance": "supports",
+                "claim_text": "adoption   IS rising",
+                "supporting_quote": "Adoption  Rose   Sharply",
+                "confidence": "high"
+              },
+              {
+                "source_id": "s9",
+                "stance": "supports",
+                "claim_text": "Adoption is rising",
+                "supporting_quote": "adoption rose sharply",
+                "confidence": "high"
+              },
+              {
+                "source_id": "s2",
+                "stance": "supports",
+                "claim_text": "Hiring slowed",
+                "supporting_quote": "adoption rose sharply",
+                "confidence": "medium"
+              },
+              {
+                "source_id": "s2",
+                "stance": "supports",
+                "claim_text": "Hiring slowed",
+                "supporting_quote": "hiring collapsed everywhere",
+                "confidence": "low"
+              }
+            ]
+          },
+          {
+            "id": "c2",
+            "statement": "A cluster with nothing grounded",
+            "classification": "outlier",
+            "members": [
+              {
+                "source_id": "s7",
+                "stance": "supports",
+                "claim_text": "invented",
+                "supporting_quote": "invented",
+                "confidence": "low"
+              }
+            ]
+          }
         ],
-        "member_count": 5,
+        "gaps": [
+          {
+            "description": "Only one source addresses: A cluster with nothing grounded",
+            "rationale": "Single-source claim \u2014 not corroborated by any other source."
+          }
+        ],
         "classifications": [
           "consensus",
           "outlier"
         ],
-        "clusters": 2,
-        "gaps": 1
+        "valid_retained": 1,
+        "invalid_retained": 4
       },
       "mixed_adversarial": {
         "outcome": "ok",
         "model_calls": 2,
-        "members": [
-          [
-            "s1",
-            "s9",
-            "s2",
-            "s2"
-          ],
-          [
-            "s7"
-          ]
+        "clusters": [
+          {
+            "id": "c1",
+            "statement": "Adoption of AI tooling is rising",
+            "classification": "contested",
+            "members": [
+              {
+                "source_id": "s1",
+                "stance": "supports",
+                "claim_text": "adoption   IS rising",
+                "supporting_quote": "Adoption  Rose   Sharply",
+                "confidence": "high"
+              },
+              {
+                "source_id": "s9",
+                "stance": "supports",
+                "claim_text": "Adoption is rising",
+                "supporting_quote": "adoption rose sharply",
+                "confidence": "high"
+              },
+              {
+                "source_id": "s2",
+                "stance": "contradicts",
+                "claim_text": "Hiring slowed",
+                "supporting_quote": "adoption rose sharply",
+                "confidence": "medium"
+              },
+              {
+                "source_id": "s2",
+                "stance": "contradicts",
+                "claim_text": "Hiring slowed",
+                "supporting_quote": "hiring collapsed everywhere",
+                "confidence": "low"
+              }
+            ]
+          },
+          {
+            "id": "c2",
+            "statement": "A cluster with nothing grounded",
+            "classification": "outlier",
+            "members": [
+              {
+                "source_id": "s7",
+                "stance": "supports",
+                "claim_text": "invented",
+                "supporting_quote": "invented",
+                "confidence": "low"
+              }
+            ]
+          }
         ],
-        "member_count": 5,
+        "gaps": [
+          {
+            "description": "Only one source addresses: A cluster with nothing grounded",
+            "rationale": "Single-source claim \u2014 not corroborated by any other source."
+          }
+        ],
         "classifications": [
           "contested",
           "outlier"
         ],
-        "clusters": 2,
-        "gaps": 1
+        "valid_retained": 1,
+        "invalid_retained": 4
       },
       "null_clusters": {
         "outcome": "TypeError",
@@ -96,64 +230,140 @@
       "all_valid_no_adversarial": {
         "outcome": "ok",
         "model_calls": 1,
-        "members": [
-          [
-            "s1",
-            "s2"
-          ]
+        "clusters": [
+          {
+            "id": "c1",
+            "statement": "Adoption of AI tooling is rising",
+            "classification": "consensus",
+            "members": [
+              {
+                "source_id": "s1",
+                "stance": "supports",
+                "claim_text": "Adoption is rising",
+                "supporting_quote": "adoption rose sharply",
+                "confidence": "high"
+              },
+              {
+                "source_id": "s2",
+                "stance": "supports",
+                "claim_text": "Adoption is rising",
+                "supporting_quote": "we see the same rise",
+                "confidence": "medium"
+              }
+            ]
+          }
         ],
-        "member_count": 2,
+        "gaps": [
+          {
+            "description": "No source covers small firms",
+            "rationale": "All five sources study enterprises."
+          }
+        ],
         "classifications": [
           "consensus"
         ],
-        "clusters": 1,
-        "gaps": 1
+        "valid_retained": 2,
+        "invalid_retained": 0
       },
       "all_valid_adversarial": {
         "outcome": "ok",
         "model_calls": 2,
-        "members": [
-          [
-            "s1",
-            "s2"
-          ]
+        "clusters": [
+          {
+            "id": "c1",
+            "statement": "Adoption of AI tooling is rising",
+            "classification": "consensus",
+            "members": [
+              {
+                "source_id": "s1",
+                "stance": "supports",
+                "claim_text": "Adoption is rising",
+                "supporting_quote": "adoption rose sharply",
+                "confidence": "high"
+              },
+              {
+                "source_id": "s2",
+                "stance": "supports",
+                "claim_text": "Adoption is rising",
+                "supporting_quote": "we see the same rise",
+                "confidence": "medium"
+              }
+            ]
+          }
         ],
-        "member_count": 2,
+        "gaps": [
+          {
+            "description": "No source covers small firms",
+            "rationale": "All five sources study enterprises."
+          }
+        ],
         "classifications": [
           "consensus"
         ],
-        "clusters": 1,
-        "gaps": 1
+        "valid_retained": 2,
+        "invalid_retained": 0
       },
       "mixed_no_adversarial": {
         "outcome": "ok",
         "model_calls": 1,
-        "members": [
-          [
-            "s1"
-          ]
+        "clusters": [
+          {
+            "id": "c1",
+            "statement": "Adoption of AI tooling is rising",
+            "classification": "outlier",
+            "members": [
+              {
+                "source_id": "s1",
+                "stance": "supports",
+                "claim_text": "adoption   IS rising",
+                "supporting_quote": "Adoption  Rose   Sharply",
+                "confidence": "high"
+              }
+            ]
+          }
         ],
-        "member_count": 1,
+        "gaps": [
+          {
+            "description": "Only one source addresses: Adoption of AI tooling is rising",
+            "rationale": "Single-source claim \u2014 not corroborated by any other source."
+          }
+        ],
         "classifications": [
           "outlier"
         ],
-        "clusters": 1,
-        "gaps": 1
+        "valid_retained": 1,
+        "invalid_retained": 0
       },
       "mixed_adversarial": {
         "outcome": "ok",
         "model_calls": 1,
-        "members": [
-          [
-            "s1"
-          ]
+        "clusters": [
+          {
+            "id": "c1",
+            "statement": "Adoption of AI tooling is rising",
+            "classification": "outlier",
+            "members": [
+              {
+                "source_id": "s1",
+                "stance": "supports",
+                "claim_text": "adoption   IS rising",
+                "supporting_quote": "Adoption  Rose   Sharply",
+                "confidence": "high"
+              }
+            ]
+          }
         ],
-        "member_count": 1,
+        "gaps": [
+          {
+            "description": "Only one source addresses: Adoption of AI tooling is rising",
+            "rationale": "Single-source claim \u2014 not corroborated by any other source."
+          }
+        ],
         "classifications": [
           "outlier"
         ],
-        "clusters": 1,
-        "gaps": 1
+        "valid_retained": 1,
+        "invalid_retained": 0
       },
       "null_clusters": {
         "outcome": "ValueError",

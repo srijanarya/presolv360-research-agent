@@ -24,7 +24,7 @@ Validate every proposed member against a catalogue of the associations extractio
 
 | Alternative | Why not |
 |---|---|
-| Check the quote only, against the union of that source's quotes | Cheaper, and it was my first instinct. It fails the measured case where a genuine quote arrives under opposite claim text, so the citation still lies. Rejected on evidence. |
+| Check the quote only, against the union of that source's quotes | Cheaper. It fails the measured case where a genuine quote arrives under opposite claim text, so the citation still lies. Rejected on evidence. |
 | Substring containment, reusing `quote_in_source` | Already in the codebase, so tempting. Containment accepts a truncated quote that changes meaning, for example dropping a negation or a qualifier. Equality is the stricter contract and is what the catalogue can actually guarantee. |
 | Aggressive canonicalization, such as smart quotes, dashes and punctuation | It would accept more well-meaning model output. It also cannot coexist with a promise that valid output stays byte-identical, and that normalization lives on a separate branch that is not in this baseline. Out of scope here. |
 | Introduce claim identifiers and have the model echo them | The clean long-term fix. It changes the model protocol and the prompts, which this change forbids, and it would make the diff much harder to review. Recorded as the natural follow-up. |
