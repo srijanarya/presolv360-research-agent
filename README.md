@@ -12,6 +12,8 @@
 > ```
 >
 > Verification runs offline with injected model responses; no model credentials are required.
+> Use a full clone, not a ZIP or shallow clone: the before/after harness reads `reason.py` at the
+> baseline commit from git history, which is why CI checks out with `fetch-depth: 0`.
 > The authentication section below applies only to running the agent live.
 
 Give it a **topic + 3–5 source URLs**. It fetches and parses the (messy, real-world) pages,
@@ -23,7 +25,7 @@ brief that distinguishes:
 - **Outlier** — only one source asserts it
 - **Gaps** — sub-topics no source covers
 
-…every claim backed by a **verbatim quote** from its source. The agent decomposes the problem into
+…every claim backed by a **quote checked against its source** (after whitespace and case normalization). The agent decomposes the problem into
 four visible stages (it does **not** one-shot a giant prompt), handles source failures gracefully,
 and ships as both a CLI and a small web app.
 
@@ -35,7 +37,7 @@ ladder    claims/src   Claim Graph   brief.json → .md / .html / web UI
 ## What it looks like
 
 The rendered brief — **Contested foregrounded** (where sources disagree), then Consensus and
-Outlier, every claim with a verbatim citation:
+Outlier, every claim with a source-checked citation:
 
 ![Brief report](docs/screenshot-brief.png)
 
@@ -88,7 +90,7 @@ For frontend hot-reload during development: `cd web && npm run dev` (Vite proxie
    main-text) → `readability` → headless **Playwright**. Each source returns a status
    (`ok | paywalled | js_required | timeout | empty | error`); a failure is reported, never fatal.
 2. **Extract** (`extract.py`, Sonnet, parallel) — one scoped call per source decomposes it into
-   atomic claims, each with a **verbatim** `supporting_quote` (unquotable claims are dropped). The
+   atomic claims, each with a `supporting_quote` **checked against the source** after whitespace and case normalization (unquotable claims are dropped). The
    prompt treats source text as untrusted data (prompt-injection-aware).
 3. **Reason** (`reason.py`, Opus + Sonnet) — clusters equivalent claims across sources and assigns
    each source a stance; an **adversarial dual-perspective** recheck argues for/against each cluster

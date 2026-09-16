@@ -42,10 +42,11 @@ flowchart TD
 4. Does filtering still happen before the adversarial call? Check that a rejected source id never appears in a recheck prompt.
 5. Can a malformed response still reach `brief.json`? It must raise instead.
 6. Is an explicitly empty `clusters` list still a legitimate success?
-7. Do the logs still carry only counts and reason codes, with no claim, quote or source text?
+7. Do the logs still carry only counts, reason codes and validated identifiers, with no claim, quote or source text? That includes the text of any exception a model call raises. The recheck-failure line in `_adversarial_recheck` still logs the exception text at `9c2cc38`; it is disclosed in ADR 001 and is the first thing to fix after this submission.
 8. Did you add a reason code without a test that names it?
 9. Are duplicate valid members still kept, and still unable to create consensus?
-10. Are new numbers in any document labelled measured, fixture-only proxy, or unavailable?
+10. Are new numbers in any document labelled measured, fixture-only proxy, historical live run, or unavailable?
+11. If you ran the pipeline live, did `quest/live-runs/diagnose.py` write a counts-only record (checked by `tests/test_live_run_records.py`), and did the raw log stay out of the repository?
 
 ## The handoff exercise, done on a disposable branch
 

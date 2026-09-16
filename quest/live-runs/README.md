@@ -1,12 +1,15 @@
 # Live runs — the fixed code against real model output
 
-Two end-to-end runs of `inputs/ai-jobs.json` at commit `bccc008` on 2026-09-16, live model calls, five sources fetched successfully both times. These are **two runs on one input**, not a production rate. Rerun with `uv run python quest/live-runs/diagnose.py inputs/ai-jobs.json out.json`; it costs model calls and needs model access.
+Live attempts of `inputs/ai-jobs.json` on 2026-09-16, real model calls. Runs 1 and 2 were made at commit `bccc008` (run 1 through the plain CLI, run 2 with an earlier version of the diagnostic); attempts 3 to 5 used the counts-only diagnostic at the commit each record names. These are **single attempts on one input**, not a production rate. Rerun with `uv run python quest/live-runs/diagnose.py inputs/ai-jobs.json quest/live-runs/runN.json`; it costs model calls and needs model access. The script writes counts only (checked by `tests/test_live_run_records.py`); raw logs are not tracked. Any model-supplied source id that is not a pipeline id lands in the `unknown_source` bucket; per-source keys are pipeline ids only; ratios are `null` when the denominator is zero. Run 1 and run 2 records predate this format and are preserved byte-for-byte; their association coverage is unavailable.
 
-| Run | Claims extracted | Members proposed | Accepted | Rejected | Sources with zero survivors | Final clusters |
-|---|---|---|---|---|---|---|
-| 1, plain CLI | 66 | 44 | 24 | 20 (45%) | one, `s4` | 14 |
-| 2, instrumented | 66 | 64 | 59 | 5 (8%) | none | 21 |
+| Attempt | Commit | Status | Claims extracted | Members proposed | Accepted | Rejected of proposed | Distinct association coverage | Final clusters |
+|---|---|---|---|---|---|---|---|---|
+| 1, plain CLI | `bccc008` | completed | 66 | 44 | 24 | 20 of 44 (45%) | unavailable (not recorded) | 14 |
+| 2, instrumented | `bccc008` | completed | 66 | 64 | 59 | 5 of 64 (8%) | unavailable (not recorded) | 21 |
+| 3, instrumented | `72bf7d7` | completed | 66 | 66 | 46 | 20 of 66 (30%) | 46 of 66 (70%) | 24 |
+| 4, instrumented | `72bf7d7` | **failed** | n/a | n/a | n/a | n/a | n/a | n/a |
+| 5, instrumented | `72bf7d7` | **failed** | n/a | n/a | n/a | n/a | n/a | n/a |
 
-Every rejection in both runs carried reason code `ungrounded_pair`. In run 2, where each rejection was classified, all five were the same shape: the quote was verbatim and matched the source, and the claim text had been rewritten by the clustering model. Run 1's rejections were not classified because the plain CLI logs counts only.
+Every rejection in runs 1 and 2 carried reason code `ungrounded_pair`. In run 2, where each rejection was classified individually, all five were the same shape: the quote matched a catalogue quote for that source after whitespace and case normalization (the `quote_exact_*` keys in the records mean equal after that normalization), and the claim text had been rewritten by the clustering model. Run 1's rejections were not classified because the plain CLI logs counts only.
 
-What this shows: the gate rejects real output, at a rate that varied from 8% to 45% between two runs of the same input, and in the classified run every loss was a paraphrased claim over a genuine quote. That is the recall cost ADR 001 names, now measured, and it is the case claim identifiers echoed by the model would remove.
+What this shows: the gate rejects real model output on every completed attempt, and the counts differ between attempts of the same input. attempt 1 rejected 20 of 44 (45%) proposed members; attempt 2 rejected 5 of 64 (8%) proposed members; attempt 3 rejected 20 of 66 (30%) proposed members with distinct association coverage 46 of 66 (70%). Attempts 4 and 5 failed on model-call errors before producing counts and are recorded as failed, not replaced. Rejected-of-proposed counts member occurrences the gate refused; distinct association coverage counts the extracted `(claim, quote)` associations that at least one accepted member carried, so repeated accepted members count once. Neither number is a semantic recall rate: nobody judged whether a rewritten claim meant the same thing as the extracted one, and the spread between attempts is reported, not explained. Run 2 is the only one of the first two attempts whose rejections were classified individually; the instrumented attempts record their rejection categories in `rejection_detail`. This is the recall cost ADR 001 names, and the case claim identifiers echoed by the model would remove.

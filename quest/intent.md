@@ -1,21 +1,21 @@
 # Intent — what I chose to fix, and why
 
 **Quest:** make AI-assisted code easier to trust and change.
-**Repository:** this one, my own public solution to a June 2026 take-home. Baseline for this work: tag `quest-baseline` (`f58b327`), which is public `main` `476522b` plus pre-Accept housekeeping.
+**Repository:** this one, my own public solution to a June 2026 take-home. Baseline for this work: tag `quest-baseline` (`f58b327`): the public `main` of 2026-09-15 (`476522b`) plus three pre-Accept housekeeping commits, which were then pushed so that `main` and the tag now point at the same commit.
 
 ## What this system does
 
 The agent takes a topic and three to five source URLs and produces a brief that separates
-consensus, contested and outlier claims, each backed by a verbatim quote. It runs in four
-stages: fetch, extract, reason, synthesize. Extraction, stage two, guarantees that every
-quote is a verbatim substring of its source. Reasoning, stage three, asks a model to cluster
+consensus, contested and outlier claims, each backed by a quote checked against its source. It
+runs in four stages: fetch, extract, reason, synthesize. Extraction, stage two, keeps a claim only
+when its quote appears in the source after whitespace normalization and lowercasing. Reasoning, stage three, asks a model to cluster
 those claims across sources. This document is about stage three.
 
 ## The problem I chose
 
 **Stage 3 reasoning accepts ungrounded members.** `build_claim_graph` asks a model to cluster extracted claims across sources. `_parse_members` then accepts whatever the model returns: any `source_id` string, any `claim_text`, any `supporting_quote`. Nothing checks those against the claims that extraction actually produced.
 
-Stage 2 is strict about provenance. `extract.py` discards any claim whose `supporting_quote` is not a verbatim substring of the source. Stage 3 then throws that guarantee away, because a quote can arrive attached to a different source, to different claim text, or be invented outright, and it still reaches `brief.json` and every view built on it.
+Stage 2 is strict about provenance. `extract.py` discards any claim whose `supporting_quote` does not appear in the source under that whitespace-and-case-normalized comparison. Stage 3 then throws that guarantee away, because a quote can arrive attached to a different source, to different claim text, or be invented outright, and it still reaches `brief.json` and every view built on it.
 
 This is a trust defect, not a crash. The brief still renders. A reader sees a citation that looks exactly like a verified one.
 
@@ -34,11 +34,11 @@ Measured before any change, by a stage-level probe against the baseline with the
 
 The tracked fixture used by `make check` is a superset of this probe: it adds a fourth invalid member in a second cluster, so it also exercises empty-cluster removal. The probe measured 3 of 3 retained; the fixture measures 4 of 4 at the baseline. They are two measurements, not one restated.
 
-Honest limits. Three synthetic cases prove the hole exists and is reachable. They do not establish a production failure rate. `main` shows repeated work on reasoning trust, in `8edb3da`, and stance and normalization fixes exist on a separate `r2-review-fixes` branch, in `76fd4af`, which is not part of this baseline. **Recurrence of this exact bug is unproven, and I am not claiming it.**
+Honest limits. Three synthetic cases prove the hole exists and is reachable. They do not establish a production failure rate. Two earlier commits are context for a recurring trust concern in this stage, not a measured rate: `main` reworked reasoning trust in `8edb3da`, and stance and normalization fixes exist on a separate `r2-review-fixes` branch, in `76fd4af`, which is not part of this baseline. **Recurrence of this exact bug is unproven, and I am not claiming it.**
 
 ## What I compared
 
-Impact, maintenance effort and operating cost below are **subjective planning scores**, not measurements.
+Impact, maintenance effort and operating cost below are **subjective planning scores**, not measurements. The scale is 1 to 5: for impact, 1 means an operator would barely notice and 5 means a reader is misled without knowing; for effort, 1 means a one-file change with existing tests and 5 means a cross-module redesign; for cost, 1 means no added model calls or memory and 5 means a new model call per request. The scores rank the options; they do not measure them.
 
 | # | Problem | Category | Evidence today | Impact / Effort / Cost |
 |---|---|---|---|---|
@@ -64,4 +64,4 @@ Impact, maintenance effort and operating cost below are **subjective planning sc
 
 ## What "done" means
 
-Invalid members reach 0 of 3 while the valid normalized member stays at 1 of 1, classifications and gaps derive from survivors, malformed model output fails loudly instead of silently producing a brief, and one `make check` regenerates every number from the recorded baseline.
+On the tracked fixture that `make check` re-runs, invalid members go from 4 of 4 retained to 0 while the valid whitespace-and-case variant stays at 1 of 1; the earlier 3-member probe is before-only evidence and is not re-run. Classifications and the derived gaps come from survivors, malformed model output fails loudly instead of silently producing a brief, and one `make check` regenerates every offline number from the recorded baseline.
