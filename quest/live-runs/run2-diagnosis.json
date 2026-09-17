@@ -1,0 +1,39 @@
+{
+  "proposed": 64,
+  "accepted": 59,
+  "rejected": {
+    "ungrounded_pair": 5
+  },
+  "detail": {
+    "quote_exact_claim_rewritten": 5
+  },
+  "per_source": {
+    "s1:accepted": 13,
+    "s5:accepted": 12,
+    "s2:accepted": 10,
+    "s3:accepted": 14,
+    "s4:accepted": 10,
+    "s3:rejected": 1,
+    "s4:rejected": 3,
+    "s5:rejected": 1
+  },
+  "extracted_per_source": {
+    "s1": 13,
+    "s2": 12,
+    "s3": 13,
+    "s4": 14,
+    "s5": 14
+  },
+  "final_clusters": 21,
+  "final_members": 59,
+  "classification": {
+    "consensus": 8,
+    "contested": 2,
+    "outlier": 11
+  },
+  "commit": "bccc008",
+  "input": "inputs/ai-jobs.json",
+  "started": "2026-09-16T09:08:12Z",
+  "finished": "2026-09-16T09:12:58Z",
+  "exit_code": 0
+}

@@ -1,0 +1,144 @@
+From a5b45a9995c7819bd6535996269ddf5cf5b5c456 Mon Sep 17 00:00:00 2001
+From: srijanarya <74669415+srijanarya@users.noreply.github.com>
+Date: Wed, 16 Sep 2026 10:33:08 +0530
+Subject: [PATCH] p4 (handoff exercise): reject unsafe URLs at POST
+ /api/research
+
+Self-performed handoff exercise for MUST Quest #959, on a disposable branch.
+NOT part of the submitted P2 production diff, and not merged.
+
+POST /api/research accepted any URL string and only discovered an unsafe one at
+fetch time, mid-run. A field validator now reuses the existing fetch-layer
+is_safe_url guard, so a bad URL is a 422 at the door instead of a half-run.
+
+Scope, stated plainly: this is input validation, NOT complete SSRF protection.
+is_safe_url does not resolve DNS and does not re-check redirects, as fetch.py
+already notes. A hostname that resolves to a private address still passes here.
+
+The pre-existing API tests used placeholder URLs like "u1", which the validator
+now rejects; they were updated to well-formed example URLs. Suite: 66 passed.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+---
+ src/research_agent/api.py | 16 +++++++++++++++-
+ tests/test_api.py         | 33 +++++++++++++++++++++++++++------
+ 2 files changed, 42 insertions(+), 7 deletions(-)
+
+diff --git a/src/research_agent/api.py b/src/research_agent/api.py
+index 061d7a7..9250a6d 100644
+--- a/src/research_agent/api.py
++++ b/src/research_agent/api.py
+@@ -17,8 +17,9 @@ from pathlib import Path
+ from fastapi import FastAPI, HTTPException
+ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
+ from fastapi.staticfiles import StaticFiles
+-from pydantic import BaseModel, Field
++from pydantic import BaseModel, Field, field_validator
+ 
++from research_agent.fetch import is_safe_url
+ from research_agent.models import Brief
+ from research_agent.pipeline import run_pipeline
+ from research_agent.synthesize import render_html, render_markdown
+@@ -31,6 +32,19 @@ class ResearchRequest(BaseModel):
+     urls: list[str] = Field(min_length=3, max_length=5)  # the brief's 3–5 sources → 422 otherwise
+     adversarial: bool = True
+ 
++    @field_validator("urls")
++    @classmethod
++    def _urls_must_be_safe(cls, urls: list[str]) -> list[str]:
++        """Reject at the door what the fetch stage would refuse anyway (422, not a
++        half-run brief). This is input validation reusing the existing fetch-time
++        guard; it is NOT complete SSRF protection — `is_safe_url` does not resolve
++        DNS or re-check redirects, as fetch.py notes."""
++        for url in urls:
++            ok, reason = is_safe_url(url)
++            if not ok:
++                raise ValueError(f"unsafe or malformed URL {url!r}: {reason}")
++        return urls
++
+ 
+ @dataclass
+ class RunState:
+diff --git a/tests/test_api.py b/tests/test_api.py
+index 98547de..fe58817 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -51,20 +51,20 @@ def _sse_events(text: str) -> list[dict]:
+ 
+ def test_post_research_returns_run_id():
+     with _client() as c:
+-        r = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2", "u3"]})
++        r = c.post("/api/research", json={"topic": "t", "urls": ["https://a.example/x", "https://b.example/y", "https://c.example/z"]})
+         assert r.status_code == 200
+         assert r.json()["run_id"]
+ 
+ 
+ def test_post_research_rejects_too_few_urls():
+     with _client() as c:
+-        r = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2"]})
++        r = c.post("/api/research", json={"topic": "t", "urls": ["https://a.example/x", "https://b.example/y"]})
+         assert r.status_code == 422
+ 
+ 
+ def test_post_research_rejects_too_many_urls():
+     with _client() as c:
+-        r = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2", "u3", "u4", "u5", "u6"]})
++        r = c.post("/api/research", json={"topic": "t", "urls": ["https://a.example/1", "https://b.example/2", "https://c.example/3", "https://d.example/4", "https://e.example/5", "https://f.example/6"]})
+         assert r.status_code == 422
+ 
+ 
+@@ -72,7 +72,7 @@ def test_post_research_rejects_too_many_urls():
+ 
+ def test_sse_emits_ordered_events_ending_in_done():
+     with _client() as c:
+-        run_id = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2", "u3"]}).json()["run_id"]
++        run_id = c.post("/api/research", json={"topic": "t", "urls": ["https://a.example/x", "https://b.example/y", "https://c.example/z"]}).json()["run_id"]
+         events = _sse_events(c.get(f"/api/research/{run_id}/stream").text)
+         stages = [e["stage"] for e in events if e["type"] == "stage_started"]
+         assert stages == ["fetch", "extract", "reason", "synthesize"]
+@@ -85,7 +85,7 @@ def test_sse_emits_error_event_on_pipeline_failure():
+         raise RuntimeError("kaboom")
+ 
+     with _client(boom) as c:
+-        run_id = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2", "u3"]}).json()["run_id"]
++        run_id = c.post("/api/research", json={"topic": "t", "urls": ["https://a.example/x", "https://b.example/y", "https://c.example/z"]}).json()["run_id"]
+         events = _sse_events(c.get(f"/api/research/{run_id}/stream").text)
+         assert any(e["type"] == "error" for e in events)
+ 
+@@ -94,7 +94,7 @@ def test_sse_emits_error_event_on_pipeline_failure():
+ 
+ def test_view_endpoints_content_types_and_404():
+     with _client() as c:
+-        run_id = c.post("/api/research", json={"topic": "t", "urls": ["u1", "u2", "u3"]}).json()["run_id"]
++        run_id = c.post("/api/research", json={"topic": "t", "urls": ["https://a.example/x", "https://b.example/y", "https://c.example/z"]}).json()["run_id"]
+         c.get(f"/api/research/{run_id}/stream")  # drive the run to completion
+ 
+         rj = c.get(f"/api/research/{run_id}")
+@@ -110,3 +110,24 @@ def test_view_endpoints_content_types_and_404():
+         assert "text/html" in rh.headers["content-type"]
+ 
+         assert c.get("/api/research/does-not-exist").status_code == 404
++
++
++# --- P4 (handoff exercise) — unsafe URLs are rejected at POST, not mid-run -----
++
++def test_post_rejects_unsafe_and_malformed_urls():
++    unsafe = [
++        "file:///etc/passwd",                        # non-http scheme
++        "http://169.254.169.254/latest/meta-data/",  # cloud metadata address
++        "http://localhost:8000/admin",               # loopback host
++        "not-a-url",                                 # no scheme, no host
++    ]
++    with _client() as c:
++        for url in unsafe:
++            body = {"topic": "t", "urls": [url, "https://a.example/x", "https://b.example/y"]}
++            assert c.post("/api/research", json=body).status_code == 422, url
++
++
++def test_post_still_accepts_ordinary_urls():
++    with _client() as c:
++        body = {"topic": "t", "urls": ["https://a.example/x", "https://b.example/y", "https://c.example/z"]}
++        assert c.post("/api/research", json=body).status_code == 200
+-- 
+2.50.1 (Apple Git-155)
+

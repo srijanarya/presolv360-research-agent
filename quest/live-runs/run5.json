@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "attempt": 5,
+  "git_sha": "72bf7d7ce85d9119479645c77e88eb2a3d440549",
+  "git_dirty": false,
+  "script_sha256": "5dbfea76221a669f6a8044f6b4ee70bd8b196dc9b60ecf70657dca9b1ed131b2",
+  "input_path": "inputs/ai-jobs.json",
+  "input_sha256": "3b4f776273ae7425117987d0348de22eef27df606a31dd1441a6ad4d971ed2c7",
+  "started_utc": "2026-09-16T13:42:00Z",
+  "finished_utc": "2026-09-16T13:42:17Z",
+  "status": "failed",
+  "exit_code": 1,
+  "error_type": "OtherError"
+}

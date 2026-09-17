@@ -1,0 +1,28 @@
+{
+  "note": "first live run, plain CLI, counts from stderr and brief.json; per-rejection detail not captured",
+  "commit": "bccc008",
+  "input": "inputs/ai-jobs.json",
+  "started": "2026-09-16T09:02:57Z",
+  "finished": "2026-09-16T09:06:48Z",
+  "exit_code": 0,
+  "sources_ok": 5,
+  "claims_extracted": 66,
+  "proposed": 44,
+  "accepted": 24,
+  "rejected": {
+    "ungrounded_pair": 20
+  },
+  "per_source_accepted": {
+    "s1": 10,
+    "s2": 3,
+    "s3": 6,
+    "s4": 0,
+    "s5": 5
+  },
+  "final_clusters": 14,
+  "classification": {
+    "consensus": 3,
+    "contested": 2,
+    "outlier": 9
+  }
+}
